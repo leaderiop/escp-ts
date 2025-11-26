@@ -16,48 +16,8 @@ import type {
   LineScoreStyle,
   BarcodeConfig,
 } from '../core/types';
-
-/**
- * Helper to create a Uint8Array from numbers
- */
-function bytes(...values: number[]): Uint8Array {
-  return new Uint8Array(values);
-}
-
-/**
- * Concatenate multiple Uint8Arrays
- */
-function concat(...arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
-
-/**
- * Convert a 16-bit value to low byte, high byte format
- */
-function toLowHigh(value: number): [number, number] {
-  const clamped = Math.max(0, Math.min(65535, Math.floor(value)));
-  return [clamped & 0xff, (clamped >> 8) & 0xff];
-}
-
-/**
- * Convert a 32-bit value to 4 bytes (little endian)
- */
-function to32BitLE(value: number): [number, number, number, number] {
-  const clamped = Math.max(0, Math.floor(value));
-  return [
-    clamped & 0xff,
-    (clamped >> 8) & 0xff,
-    (clamped >> 16) & 0xff,
-    (clamped >> 24) & 0xff,
-  ];
-}
+import { bytes, concat, toLowHigh, to32BitLE } from '../core/utils';
+import { assertByte, assertRange, assertValidHex } from '../core/validation';
 
 /**
  * ESC/P2 Command Builder class
@@ -107,25 +67,31 @@ export class CommandBuilder {
   /**
    * ESC 3 n - Set n/180-inch line spacing (24-pin) or n/216-inch (9-pin)
    * @param n Line spacing value (0-255)
+   * @throws {EscpRangeError} if n is not between 0 and 255
    */
   static lineSpacingN180(n: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.LINE_SPACING_N_180, n & 0xff);
+    assertByte(n, 'n');
+    return bytes(ASCII.ESC, ESC_COMMANDS.LINE_SPACING_N_180, n);
   }
 
   /**
    * ESC A n - Set n/60-inch line spacing
    * @param n Line spacing value (0-255)
+   * @throws {EscpRangeError} if n is not between 0 and 255
    */
   static lineSpacingN60(n: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.LINE_SPACING_N_60, n & 0xff);
+    assertByte(n, 'n');
+    return bytes(ASCII.ESC, ESC_COMMANDS.LINE_SPACING_N_60, n);
   }
 
   /**
    * ESC + n - Set n/360-inch line spacing (ESC/P2)
    * @param n Line spacing value (0-255)
+   * @throws {EscpRangeError} if n is not between 0 and 255
    */
   static lineSpacingN360(n: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.LINE_SPACING_N_360, n & 0xff);
+    assertByte(n, 'n');
+    return bytes(ASCII.ESC, ESC_COMMANDS.LINE_SPACING_N_360, n);
   }
 
   /**
@@ -215,9 +181,11 @@ export class CommandBuilder {
   /**
    * ESC J n - Advance print position vertically by n/180 inch
    * @param n Advance value (0-255)
+   * @throws {EscpRangeError} if n is not between 0 and 255
    */
   static advanceVertical(n: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.ADVANCE_VERTICAL, n & 0xff);
+    assertByte(n, 'n');
+    return bytes(ASCII.ESC, ESC_COMMANDS.ADVANCE_VERTICAL, n);
   }
 
   /**
@@ -255,17 +223,21 @@ export class CommandBuilder {
   /**
    * ESC C n - Set page length in lines
    * @param lines Number of lines per page (1-127)
+   * @throws {EscpRangeError} if lines is not between 1 and 127
    */
   static setPageLengthLines(lines: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.PAGE_LENGTH_LINES, lines & 0x7f);
+    assertRange(lines, 1, 127, 'lines');
+    return bytes(ASCII.ESC, ESC_COMMANDS.PAGE_LENGTH_LINES, lines);
   }
 
   /**
    * ESC C NUL n - Set page length in inches
    * @param inches Page length in inches (1-22)
+   * @throws {EscpRangeError} if inches is not between 1 and 22
    */
   static setPageLengthInches(inches: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.PAGE_LENGTH_LINES, ASCII.NUL, inches & 0xff);
+    assertRange(inches, 1, 22, 'inches');
+    return bytes(ASCII.ESC, ESC_COMMANDS.PAGE_LENGTH_LINES, ASCII.NUL, inches);
   }
 
   /**
@@ -311,9 +283,11 @@ export class CommandBuilder {
   /**
    * ESC N n - Set bottom margin
    * @param lines Number of lines for bottom margin (1-127)
+   * @throws {EscpRangeError} if lines is not between 1 and 127
    */
   static setBottomMargin(lines: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.BOTTOM_MARGIN, lines & 0x7f);
+    assertRange(lines, 1, 127, 'lines');
+    return bytes(ASCII.ESC, ESC_COMMANDS.BOTTOM_MARGIN, lines);
   }
 
   /**
@@ -325,18 +299,22 @@ export class CommandBuilder {
 
   /**
    * ESC l n - Set left margin
-   * @param columns Left margin in character columns
+   * @param columns Left margin in character columns (0-255)
+   * @throws {EscpRangeError} if columns is not between 0 and 255
    */
   static setLeftMargin(columns: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.LEFT_MARGIN, columns & 0xff);
+    assertByte(columns, 'columns');
+    return bytes(ASCII.ESC, ESC_COMMANDS.LEFT_MARGIN, columns);
   }
 
   /**
    * ESC Q n - Set right margin
-   * @param columns Right margin in character columns
+   * @param columns Right margin in character columns (0-255)
+   * @throws {EscpRangeError} if columns is not between 0 and 255
    */
   static setRightMargin(columns: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.RIGHT_MARGIN, columns & 0xff);
+    assertByte(columns, 'columns');
+    return bytes(ASCII.ESC, ESC_COMMANDS.RIGHT_MARGIN, columns);
   }
 
   // ==================== TABS ====================
@@ -377,16 +355,18 @@ export class CommandBuilder {
 
   /**
    * ESC ( U nL nH m - Set unit (ESC/P2)
-   * @param unit Unit value (typically 1/360, 1/720, or 1/1440 inch)
+   * @param unit Unit value (typically 1/360, 1/720, or 1/1440 inch) (0-255)
+   * @throws {EscpRangeError} if unit is not between 0 and 255
    */
   static setUnit(unit: number): Uint8Array {
+    assertByte(unit, 'unit');
     return bytes(
       ASCII.ESC,
       0x28, // '('
       ESC_EXTENDED.SET_UNIT,
       1,
       0, // byte count = 1
-      unit & 0xff
+      unit
     );
   }
 
@@ -614,10 +594,12 @@ export class CommandBuilder {
 
   /**
    * ESC SP n - Set intercharacter space
-   * @param dots Space in dots (depends on current mode)
+   * @param dots Space in dots (depends on current mode) (0-255)
+   * @throws {EscpRangeError} if dots is not between 0 and 255
    */
   static setInterCharSpace(dots: number): Uint8Array {
-    return bytes(ASCII.ESC, ESC_COMMANDS.INTER_CHAR_SPACE, dots & 0xff);
+    assertByte(dots, 'dots');
+    return bytes(ASCII.ESC, ESC_COMMANDS.INTER_CHAR_SPACE, dots);
   }
 
   // ==================== CHARACTER TABLES ====================
@@ -921,12 +903,14 @@ export class CommandBuilder {
   /**
    * Create raw byte array from hex string
    * @param hex Hex string (e.g., "1B40" or "1B 40")
+   * @throws {EncodingError} if hex string has odd length or invalid characters
    */
   static fromHex(hex: string): Uint8Array {
+    assertValidHex(hex);
     const clean = hex.replace(/\s/g, '');
     const result = new Uint8Array(clean.length / 2);
     for (let i = 0; i < result.length; i++) {
-      result[i] = parseInt(clean.substr(i * 2, 2), 16);
+      result[i] = parseInt(clean.substring(i * 2, i * 2 + 2), 16);
     }
     return result;
   }

@@ -14,6 +14,8 @@ import {
   BIT_IMAGE_MODE,
   LQ_2090II,
 } from '../core/constants';
+import { concat } from '../core/utils';
+import { assertNonNegative, assertOneOf } from '../core/validation';
 import type {
   PrinterState,
   FontConfig,
@@ -41,20 +43,6 @@ import { measureNode, type MeasureContext } from './measure';
 import { performLayout } from './layout';
 import { renderLayout } from './renderer';
 import { StackBuilder, FlexBuilder, GridBuilder, stack, flex, grid } from './builders';
-
-/**
- * Helper to concatenate multiple Uint8Arrays
- */
-function concat(...arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
 
 /**
  * Default LQ-2090II printer profile
@@ -166,8 +154,25 @@ export class LayoutEngine {
 
   /**
    * Set up page with custom configuration
+   * @throws {ValidationError} if margins are negative
    */
   setupPage(paper: Partial<PaperConfig>): this {
+    // Validate margins if provided
+    if (paper.margins) {
+      if (paper.margins.top !== undefined) {
+        assertNonNegative(paper.margins.top, 'margins.top');
+      }
+      if (paper.margins.bottom !== undefined) {
+        assertNonNegative(paper.margins.bottom, 'margins.bottom');
+      }
+      if (paper.margins.left !== undefined) {
+        assertNonNegative(paper.margins.left, 'margins.left');
+      }
+      if (paper.margins.right !== undefined) {
+        assertNonNegative(paper.margins.right, 'margins.right');
+      }
+    }
+
     const state = this.stateManager.getMutableState();
     Object.assign(state.paper, paper);
 
@@ -242,18 +247,10 @@ export class LayoutEngine {
 
   /**
    * Set font by CPI
+   * @throws {ConfigurationError} if CPI is not supported
    */
   setCpi(cpi: number): this {
-    if (!this.options.profile.supportedCpi.includes(cpi)) {
-      if (this.options.strict) {
-        throw new Error(`Unsupported CPI: ${cpi}`);
-      }
-      // Find closest supported CPI
-      const closest = this.options.profile.supportedCpi.reduce((prev, curr) =>
-        Math.abs(curr - cpi) < Math.abs(prev - cpi) ? curr : prev
-      );
-      cpi = closest;
-    }
+    assertOneOf(cpi, this.options.profile.supportedCpi, 'cpi');
 
     switch (cpi) {
       case 10:

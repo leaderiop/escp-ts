@@ -316,3 +316,28 @@ export const BARCODE_TYPE = {
   INDUSTRIAL_2_OF_5: 9,
   MATRIX_2_OF_5: 10,
 } as const;
+
+// Command parameter limits
+export const LIMITS = {
+  MAX_BYTE: 255,
+  MAX_UINT16: 65535,
+  MAX_PAGE_LINES: 127,
+  MAX_PAGE_INCHES: 22,
+  MAX_HORIZONTAL_TABS: 32,
+  MAX_VERTICAL_TABS: 16,
+  MAX_POINT_SIZE: 32,
+  MIN_POINT_SIZE: 8,
+} as const;
+
+// Motion unit divisors for positioning commands
+export const MOTION_UNITS = {
+  UNIT_60: 60, // 1/60 inch
+  UNIT_180: 180, // 1/180 inch
+  UNIT_360: 360, // 1/360 inch (base unit for ESC/P2)
+} as const;
+
+// Pin configurations for graphics modes
+export const PIN_COUNTS = {
+  STANDARD: 8,
+  HIGH_DENSITY: 24,
+} as const;

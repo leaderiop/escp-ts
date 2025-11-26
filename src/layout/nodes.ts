@@ -258,6 +258,27 @@ export function isContainerNode(node: LayoutNode): node is StackNode | FlexNode 
 }
 
 /**
+ * Type guard to check if a node is a stack node
+ */
+export function isStackNode(node: LayoutNode): node is StackNode {
+  return node.type === 'stack';
+}
+
+/**
+ * Type guard to check if a node is a flex node
+ */
+export function isFlexNode(node: LayoutNode): node is FlexNode {
+  return node.type === 'flex';
+}
+
+/**
+ * Type guard to check if a node is a grid node
+ */
+export function isGridNode(node: LayoutNode): node is GridNode {
+  return node.type === 'grid';
+}
+
+/**
  * Type guard to check if a node is a text node
  */
 export function isTextNode(node: LayoutNode): node is TextNode {
@@ -269,6 +290,31 @@ export function isTextNode(node: LayoutNode): node is TextNode {
  */
 export function isSpacerNode(node: LayoutNode): node is SpacerNode {
   return node.type === 'spacer';
+}
+
+/**
+ * Type guard to check if a node is a line node
+ */
+export function isLineNode(node: LayoutNode): node is LineNode {
+  return node.type === 'line';
+}
+
+/**
+ * Helper for exhaustive switch statements
+ * Ensures all cases in a discriminated union are handled
+ *
+ * @example
+ * ```typescript
+ * switch (node.type) {
+ *   case 'text': return handleText(node);
+ *   case 'stack': return handleStack(node);
+ *   // ... other cases
+ *   default: assertNever(node);
+ * }
+ * ```
+ */
+export function assertNever(x: never): never {
+  throw new Error(`Unexpected value: ${JSON.stringify(x)}`);
 }
 
 // ==================== HELPER FUNCTIONS ====================

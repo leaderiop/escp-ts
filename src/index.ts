@@ -35,6 +35,35 @@
 export * from './core/types';
 export * from './core/constants';
 
+// Error classes
+export {
+  EscpError,
+  ValidationError,
+  EscpRangeError,
+  GraphicsError,
+  EncodingError,
+  ConfigurationError,
+} from './core/errors';
+
+// Validation utilities
+export {
+  assertByte,
+  assertRange,
+  assertUint16,
+  assertValidHex,
+  assertPositiveDimensions,
+  assertNonNegative,
+  assertOneOf,
+} from './core/validation';
+
+// Byte manipulation utilities
+export {
+  bytes,
+  concat,
+  toLowHigh,
+  to32BitLE,
+} from './core/utils';
+
 // Printer state management
 export {
   PrinterStateManager,
@@ -129,8 +158,13 @@ export {
   resolvePadding,
   resolveStyle,
   isContainerNode,
+  isStackNode,
+  isFlexNode,
+  isGridNode,
   isTextNode,
   isSpacerNode,
+  isLineNode,
+  assertNever,
 } from './layout/nodes';
 
 // Layout system - Builders

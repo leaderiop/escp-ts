@@ -5,6 +5,7 @@
 
 import { BIT_IMAGE_MODE } from '../core/constants';
 import type { BitImageMode, BitImageData } from '../core/types';
+import { assertPositiveDimensions } from '../core/validation';
 
 /**
  * Graphics mode information
@@ -218,12 +219,15 @@ export function applyDithering(
 
 /**
  * Scale image using nearest neighbor
+ * @throws {GraphicsError} if newWidth or newHeight is not a positive integer
  */
 export function scaleImageNearest(
   image: GrayscaleImage,
   newWidth: number,
   newHeight: number
 ): GrayscaleImage {
+  assertPositiveDimensions(newWidth, newHeight, 'scaleImageNearest');
+
   const result: GrayscaleImage = {
     width: newWidth,
     height: newHeight,
@@ -248,12 +252,15 @@ export function scaleImageNearest(
 
 /**
  * Scale image using bilinear interpolation
+ * @throws {GraphicsError} if newWidth or newHeight is not a positive integer
  */
 export function scaleImageBilinear(
   image: GrayscaleImage,
   newWidth: number,
   newHeight: number
 ): GrayscaleImage {
+  assertPositiveDimensions(newWidth, newHeight, 'scaleImageBilinear');
+
   const result: GrayscaleImage = {
     width: newWidth,
     height: newHeight,
