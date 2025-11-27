@@ -343,8 +343,6 @@ function paginateItems(
   const yGroups = groupByY(items);
 
   for (const group of yGroups) {
-    const remaining = getRemainingSpace(ctx);
-
     // Handle explicit breakBefore for any item in the group
     const hasBreakBefore = group.items.some(item => item.breakBefore);
     if (hasBreakBefore && currentPage.items.length > 0) {
@@ -356,7 +354,8 @@ function paginateItems(
 
     // Check if group fits on current page (use max height of group)
     const groupHeight = group.maxHeight;
-    const fitsOnCurrentPage = groupHeight <= getRemainingSpace(ctx);
+    const remaining = getRemainingSpace(ctx);
+    const fitsOnCurrentPage = groupHeight <= remaining;
     const fitsOnFreshPage = groupHeight <= ctx.pageConfig.printableHeight;
 
     // If group doesn't fit on current page
@@ -467,12 +466,14 @@ function flattenPageableItems(items: PageableItem[]): PageableItem[] {
 
       // Apply container's breakBefore to first child (by Y order, not DOM order)
       // We'll handle this after sorting
-      if (item.breakBefore && flatChildren.length > 0) {
-        flatChildren[0]!.breakBefore = true;
+      const firstChild = flatChildren[0];
+      if (item.breakBefore && firstChild) {
+        firstChild.breakBefore = true;
       }
       // Apply container's breakAfter to last child (by Y order)
-      if (item.breakAfter && flatChildren.length > 0) {
-        flatChildren[flatChildren.length - 1]!.breakAfter = true;
+      const lastChild = flatChildren[flatChildren.length - 1];
+      if (item.breakAfter && lastChild) {
+        lastChild.breakAfter = true;
       }
 
       result.push(...flatChildren);
