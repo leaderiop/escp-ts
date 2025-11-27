@@ -11,6 +11,7 @@ import type {
   StackNode,
   FlexNode,
   GridNode,
+  SpacerNode,
   HAlign,
   VAlign,
   JustifyContent,
@@ -38,6 +39,8 @@ export interface LayoutResult {
   children: LayoutResult[];
   /** Resolved style (copied from measured node) */
   style: MeasuredNode['style'];
+  /** Cell alignment for grid children (renderer handles this) */
+  cellAlign?: HAlign;
 }
 
 // ==================== LAYOUT CONTEXT ====================
@@ -98,16 +101,19 @@ function alignVertical(
 
 /**
  * Calculate positions for justify content in flex layouts
+ * @param remainingSpaceOverride - Optional override for remaining space (used for wrapped lines)
  */
 function calculateJustifyPositions(
   justify: JustifyContent | undefined,
   childWidths: number[],
   containerWidth: number,
-  gap: number
+  gap: number,
+  remainingSpaceOverride?: number
 ): number[] {
   const totalChildWidth = childWidths.reduce((a, b) => a + b, 0);
   const totalGapWidth = (childWidths.length - 1) * gap;
-  const remainingSpace = containerWidth - totalChildWidth - totalGapWidth;
+  // Use override if provided (for wrapped flex lines), otherwise calculate
+  const remainingSpace = remainingSpaceOverride ?? (containerWidth - totalChildWidth - totalGapWidth);
   const positions: number[] = [];
 
   switch (justify) {
@@ -144,11 +150,25 @@ function calculateJustifyPositions(
     }
 
     case 'space-around': {
+      if (childWidths.length === 0) break;
       const spaceAround = remainingSpace / childWidths.length;
       let x = spaceAround / 2;
       childWidths.forEach(w => {
         positions.push(x);
         x += w + spaceAround;
+      });
+      break;
+    }
+
+    case 'space-evenly': {
+      // Equal space before, between, and after all items
+      // Formula: spacing = remainingSpace / (itemCount + 1)
+      if (childWidths.length === 0) break;
+      const spacing = remainingSpace / (childWidths.length + 1);
+      let x = spacing;
+      childWidths.forEach(w => {
+        positions.push(x);
+        x += w + spacing;
       });
       break;
     }
@@ -183,19 +203,26 @@ function layoutTextNode(
   // Content width excludes margins
   const contentWidth = measured.preferredWidth - margin.left - margin.right;
 
+  // Calculate available width from context (constraint width)
+  const availableWidth = ctx.width - margin.left - margin.right;
+
+  // The final width is the minimum of content width and available constraint
+  // This ensures result.width reflects actual constraint for truncation purposes
+  const finalWidth = Math.min(contentWidth, availableWidth);
+
   let xOffset: number;
   if (margin.autoHorizontal) {
     // Auto horizontal margins - center the element
     xOffset = Math.floor((ctx.width - contentWidth) / 2);
   } else {
-    xOffset = margin.left + alignHorizontal(align, contentWidth, ctx.width - margin.left - margin.right);
+    xOffset = margin.left + alignHorizontal(align, contentWidth, availableWidth);
   }
 
   return {
     node: measured.node,
     x: ctx.x + xOffset,
     y: ctx.y + margin.top,
-    width: contentWidth,
+    width: finalWidth,
     height: measured.preferredHeight - margin.top - margin.bottom,
     children: [],
     style: measured.style,
@@ -254,10 +281,18 @@ function layoutStackNode(
   const margin = measured.margin;
 
   // Content area inside margin and padding
+  // When stack has explicit width (percentage or fixed), use its preferredWidth
+  // When stack has auto/fill width, use ctx.width (parent's available width)
+  const hasExplicitWidth = node.width !== undefined && node.width !== 'auto' && node.width !== 'fill';
+  const baseWidth = hasExplicitWidth
+    ? measured.preferredWidth - margin.left - margin.right
+    : ctx.width - margin.left - margin.right;
+  const baseHeight = measured.preferredHeight - margin.top - margin.bottom;
+
   const contentX = ctx.x + margin.left + padding.left;
   const contentY = ctx.y + margin.top + padding.top;
-  const contentWidth = ctx.width - margin.left - margin.right - padding.left - padding.right;
-  const contentHeight = ctx.height - margin.top - margin.bottom - padding.top - padding.bottom;
+  const contentWidth = baseWidth - padding.left - padding.right;
+  const contentHeight = baseHeight - padding.top - padding.bottom;
 
   const childResults: LayoutResult[] = [];
 
@@ -275,10 +310,16 @@ function layoutStackNode(
         xOffset = alignHorizontal(node.align, childMeasured.preferredWidth, contentWidth);
       }
 
+      // Use child's preferredWidth for layout context, not parent's contentWidth
+      // This ensures children with explicit width and auto margins render correctly
+      const childLayoutWidth = childMeasured.margin.autoHorizontal
+        ? childMeasured.preferredWidth
+        : contentWidth;
+
       const childResult = layoutNode(childMeasured, {
         x: contentX + xOffset,
         y: currentY,
-        width: contentWidth,
+        width: childLayoutWidth,
         height: childMeasured.preferredHeight,
       });
 
@@ -348,12 +389,19 @@ function layoutFlexNode(
       const lineChildren = measured.children.slice(line.startIndex, line.endIndex);
       const lineChildWidths = lineChildren.map(c => c.preferredWidth);
 
-      // Calculate X positions for this line
+      // Calculate remaining space for THIS specific line
+      // Each wrapped line is an independent justify context
+      const lineContentWidth = lineChildWidths.reduce((a, b) => a + b, 0);
+      const lineGapWidth = Math.max(0, lineChildWidths.length - 1) * gap;
+      const lineRemainingSpace = contentWidth - lineContentWidth - lineGapWidth;
+
+      // Calculate X positions for this line with line-specific remaining space
       const xPositions = calculateJustifyPositions(
         justify,
         lineChildWidths,
         contentWidth,
-        gap
+        gap,
+        lineRemainingSpace
       );
 
       // Layout each child in the line
@@ -366,7 +414,7 @@ function layoutFlexNode(
           x: contentX + xPosition,
           y: currentY + yOffset,
           width: childMeasured.preferredWidth,
-          height: line.height,
+          height: childMeasured.preferredHeight,  // Use child's own height, not line.height
         });
 
         childResults.push(childResult);
@@ -377,7 +425,32 @@ function layoutFlexNode(
     });
   } else {
     // No wrapping: single row layout
-    const childWidths = measured.children.map(c => c.preferredWidth);
+    // First, identify flex spacers and distribute remaining space to them
+    const flexSpacerIndices: number[] = [];
+    let totalFixedWidth = 0;
+
+    measured.children.forEach((child, i) => {
+      const childNode = child.node;
+      if (childNode.type === 'spacer' && (childNode as SpacerNode).flex) {
+        flexSpacerIndices.push(i);
+      } else {
+        totalFixedWidth += child.preferredWidth;
+      }
+    });
+
+    // Calculate child widths, distributing remaining space to flex spacers
+    const totalGapWidth = (measured.children.length - 1) * gap;
+    const remainingSpace = Math.max(0, contentWidth - totalFixedWidth - totalGapWidth);
+    const spacerWidth = flexSpacerIndices.length > 0
+      ? Math.floor(remainingSpace / flexSpacerIndices.length)
+      : 0;
+
+    const childWidths = measured.children.map((c, i) => {
+      if (flexSpacerIndices.includes(i)) {
+        return spacerWidth;
+      }
+      return c.preferredWidth;
+    });
 
     // Calculate X positions based on justify
     const xPositions = calculateJustifyPositions(
@@ -391,11 +464,12 @@ function layoutFlexNode(
       // Calculate Y offset based on alignItems
       const yOffset = alignVertical(alignItems, childMeasured.preferredHeight, contentHeight);
       const xPosition = xPositions[i] ?? 0;
+      const childWidth = childWidths[i] ?? childMeasured.preferredWidth;
 
       const childResult = layoutNode(childMeasured, {
         x: contentX + xPosition,
         y: contentY + yOffset,
-        width: childMeasured.preferredWidth,
+        width: childWidth,
         height: contentHeight,
       });
 
@@ -466,19 +540,24 @@ function layoutGridNode(
       // Get cell alignment from the text node if present
       const cellAlign = 'align' in cellNode ? (cellNode as { align?: HAlign }).align : undefined;
 
-      // Calculate alignment within cell
-      const xOffset = alignHorizontal(cellAlign, childMeasured.preferredWidth, cellWidth);
+      // Don't apply horizontal alignment offset at layout time
+      // Store alignment in result for renderer to handle within cell boundaries
       const yOffset = alignVertical('top', childMeasured.preferredHeight, cellHeight);
 
       const colPosition = columnPositions[colIdx] ?? 0;
       const rowPosition = rowPositions[rowIdx] ?? 0;
 
       const childResult = layoutNode(childMeasured, {
-        x: contentX + colPosition + xOffset,
+        x: contentX + colPosition,  // No xOffset - renderer handles alignment
         y: contentY + rowPosition + yOffset,
         width: cellWidth,
         height: cellHeight,
       });
+
+      // Store cell alignment for renderer to use
+      if (cellAlign) {
+        childResult.cellAlign = cellAlign;
+      }
 
       childResults.push(childResult);
       childIndex++;

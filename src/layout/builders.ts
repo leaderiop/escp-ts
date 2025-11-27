@@ -15,6 +15,10 @@ import type {
   TextNode,
   SpacerNode,
   LineNode,
+  TemplateNode,
+  ConditionalNode,
+  SwitchNode,
+  EachNode,
   WidthSpec,
   HeightSpec,
   PaddingSpec,
@@ -27,7 +31,11 @@ import type {
   ContentCondition,
   SpaceQuery,
   TextOrientation,
+  TextOverflow,
   FlexWrap,
+  DataCondition,
+  DataContext,
+  ContentResolver,
 } from './nodes';
 
 // ==================== TEXT OPTIONS ====================
@@ -42,6 +50,8 @@ export interface TextOptions extends StyleProps {
   width?: WidthSpec;
   /** Text orientation: 'horizontal' (default) or 'vertical' */
   orientation?: TextOrientation;
+  /** Overflow behavior: 'visible' (default), 'clip', or 'ellipsis' */
+  overflow?: TextOverflow;
 }
 
 /**
@@ -285,6 +295,29 @@ export class StackBuilder {
     const textNode: TextNode = {
       type: 'text',
       content,
+      ...opts,
+    };
+    this.node.children.push(textNode);
+    return this;
+  }
+
+  /**
+   * Add a text child with dynamic content from data context
+   * The resolver function is called during node resolution with the data context
+   *
+   * @example
+   * ```typescript
+   * stack()
+   *   .textFrom(ctx => `Hello, ${ctx.data.name}!`)
+   *   .textFrom(ctx => `Item ${ctx.index + 1} of ${ctx.total}`)
+   *   .build()
+   * ```
+   */
+  textFrom<T = unknown>(resolver: ContentResolver<T>, opts?: TextOptions): this {
+    const textNode: TextNode = {
+      type: 'text',
+      content: '', // Fallback if resolver not called
+      contentResolver: resolver as ContentResolver,
       ...opts,
     };
     this.node.children.push(textNode);
@@ -585,6 +618,30 @@ export class FlexBuilder {
     return this;
   }
 
+  /**
+   * Add a text child with dynamic content from data context
+   * The resolver function is called during node resolution with the data context
+   *
+   * @example
+   * ```typescript
+   * flex()
+   *   .textFrom(ctx => ctx.data.label)
+   *   .spacer()
+   *   .textFrom(ctx => `$${ctx.data.price.toFixed(2)}`)
+   *   .build()
+   * ```
+   */
+  textFrom<T = unknown>(resolver: ContentResolver<T>, opts?: TextOptions): this {
+    const textNode: TextNode = {
+      type: 'text',
+      content: '', // Fallback if resolver not called
+      contentResolver: resolver as ContentResolver,
+      ...opts,
+    };
+    this.node.children.push(textNode);
+    return this;
+  }
+
   /** Add a flexible spacer (grows to fill space) */
   spacer(width?: number): this {
     const spacerNode: SpacerNode = {
@@ -685,6 +742,12 @@ export class GridBuilder {
   /** Set gap between rows (in dots) */
   rowGap(dots: number): this {
     this.node.rowGap = dots;
+    return this;
+  }
+
+  /** Set default overflow behavior for cells: 'visible', 'clip' (default), or 'ellipsis' */
+  cellOverflow(overflow: TextOverflow): this {
+    this.node.cellOverflow = overflow;
     return this;
   }
 
@@ -1033,4 +1096,426 @@ export function line(char: string = '-', length?: number | 'fill'): LineNode {
  */
 export function spaceQuery(query: SpaceQuery): SpaceQuery {
   return query;
+}
+
+// ==================== TEMPLATE BUILDER ====================
+
+/**
+ * Builder for Template nodes with {{variable}} interpolation
+ *
+ * @example
+ * ```typescript
+ * template('Hello {{name}}!')
+ *   .data({ name: 'World' })
+ *   .bold()
+ *   .build()
+ * ```
+ */
+export class TemplateBuilder {
+  private node: TemplateNode;
+
+  constructor(templateString: string) {
+    this.node = {
+      type: 'template',
+      template: templateString,
+    };
+  }
+
+  /** Set local data to merge with context data */
+  data(d: Record<string, unknown>): this {
+    this.node.data = d;
+    return this;
+  }
+
+  /** Set horizontal alignment */
+  align(a: HAlign): this {
+    this.node.align = a;
+    return this;
+  }
+
+  /** Set width */
+  width(w: WidthSpec): this {
+    this.node.width = w;
+    return this;
+  }
+
+  /** Set padding */
+  padding(p: PaddingSpec): this {
+    this.node.padding = p;
+    return this;
+  }
+
+  /** Set margin */
+  margin(m: MarginSpec): this {
+    this.node.margin = m;
+    return this;
+  }
+
+  // === STYLE CONFIGURATION ===
+
+  /** Set bold style */
+  bold(on: boolean = true): this {
+    this.node.bold = on;
+    return this;
+  }
+
+  /** Set italic style */
+  italic(on: boolean = true): this {
+    this.node.italic = on;
+    return this;
+  }
+
+  /** Set underline style */
+  underline(on: boolean = true): this {
+    this.node.underline = on;
+    return this;
+  }
+
+  /** Set double width */
+  doubleWidth(on: boolean = true): this {
+    this.node.doubleWidth = on;
+    return this;
+  }
+
+  /** Set double height */
+  doubleHeight(on: boolean = true): this {
+    this.node.doubleHeight = on;
+    return this;
+  }
+
+  /** Set CPI */
+  cpi(value: number): this {
+    this.node.cpi = value;
+    return this;
+  }
+
+  /** Build and return the template node */
+  build(): TemplateNode {
+    return this.node;
+  }
+}
+
+// ==================== CONDITIONAL BUILDER ====================
+
+/**
+ * Builder for Conditional nodes with if/else-if/else branching
+ *
+ * @example
+ * ```typescript
+ * conditional()
+ *   .if({ path: 'user.isPremium', operator: 'eq', value: true })
+ *   .then(text('Premium Member!', { bold: true }))
+ *   .else(text('Standard Member'))
+ *   .build()
+ * ```
+ */
+export class ConditionalBuilder {
+  private node: ConditionalNode;
+
+  constructor() {
+    // Initialize with placeholder - will be set by if()
+    this.node = {
+      type: 'conditional',
+      condition: () => false,
+      then: { type: 'spacer', height: 0 },
+    };
+  }
+
+  /** Set the primary condition using a DataCondition */
+  if(condition: DataCondition | ((ctx: DataContext) => boolean)): this {
+    this.node.condition = condition;
+    return this;
+  }
+
+  /** Set the primary condition using path, operator, and value */
+  ifPath(path: string, operator: DataCondition['operator'], value?: unknown): this {
+    const condition: DataCondition = { path, operator, value };
+    this.node.condition = condition;
+    return this;
+  }
+
+  /** Set the node to render when condition is true */
+  then(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.then = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
+    return this;
+  }
+
+  /** Add an else-if branch */
+  elseIf(
+    condition: DataCondition | ((ctx: DataContext) => boolean),
+    thenNode: LayoutNode | StackBuilder | FlexBuilder | GridBuilder
+  ): this {
+    if (!this.node.elseIf) {
+      this.node.elseIf = [];
+    }
+    this.node.elseIf.push({
+      condition,
+      then: thenNode instanceof StackBuilder || thenNode instanceof FlexBuilder || thenNode instanceof GridBuilder
+        ? thenNode.build()
+        : thenNode,
+    });
+    return this;
+  }
+
+  /** Add an else-if branch using path, operator, and value */
+  elseIfPath(
+    path: string,
+    operator: DataCondition['operator'],
+    value: unknown,
+    thenNode: LayoutNode | StackBuilder | FlexBuilder | GridBuilder
+  ): this {
+    return this.elseIf({ path, operator, value }, thenNode);
+  }
+
+  /** Set the node to render when all conditions are false */
+  else(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.else = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
+    return this;
+  }
+
+  /** Build and return the conditional node */
+  build(): ConditionalNode {
+    return this.node;
+  }
+}
+
+// ==================== SWITCH BUILDER ====================
+
+/**
+ * Builder for Switch nodes with case matching
+ *
+ * @example
+ * ```typescript
+ * switchOn('order.status')
+ *   .case('pending', text('Pending'))
+ *   .case('shipped', text('Shipped', { bold: true }))
+ *   .case(['delivered', 'completed'], text('Done'))
+ *   .default(text('Unknown'))
+ *   .build()
+ * ```
+ */
+export class SwitchBuilder {
+  private node: SwitchNode;
+
+  constructor(path: string) {
+    this.node = {
+      type: 'switch',
+      path,
+      cases: [],
+    };
+  }
+
+  /** Add a case branch */
+  case(
+    value: unknown | unknown[],
+    thenNode: LayoutNode | StackBuilder | FlexBuilder | GridBuilder
+  ): this {
+    this.node.cases.push({
+      value,
+      then: thenNode instanceof StackBuilder || thenNode instanceof FlexBuilder || thenNode instanceof GridBuilder
+        ? thenNode.build()
+        : thenNode,
+    });
+    return this;
+  }
+
+  /** Set the default node when no cases match */
+  default(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.default = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
+    return this;
+  }
+
+  /** Build and return the switch node */
+  build(): SwitchNode {
+    return this.node;
+  }
+}
+
+// ==================== EACH BUILDER ====================
+
+/**
+ * Builder for Each nodes that iterate over arrays
+ *
+ * @example
+ * ```typescript
+ * each('order.items')
+ *   .as('item')
+ *   .render(
+ *     flex()
+ *       .add(template('{{item.name}}'))
+ *       .spacer()
+ *       .add(template('{{item.price | currency}}'))
+ *   )
+ *   .separator(line('-', 'fill'))
+ *   .empty(text('No items'))
+ *   .build()
+ * ```
+ */
+export class EachBuilder {
+  private node: EachNode;
+
+  constructor(itemsPath: string) {
+    this.node = {
+      type: 'each',
+      items: itemsPath,
+      render: { type: 'spacer', height: 0 }, // Placeholder
+    };
+  }
+
+  /** Set the variable name for current item (default: 'item') */
+  as(name: string): this {
+    this.node.as = name;
+    return this;
+  }
+
+  /** Set the variable name for current index (default: 'index') */
+  indexAs(name: string): this {
+    this.node.indexAs = name;
+    return this;
+  }
+
+  /** Set the node template to render for each item */
+  render(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder | TemplateBuilder): this {
+    this.node.render = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder || node instanceof TemplateBuilder
+      ? node.build()
+      : node;
+    return this;
+  }
+
+  /** Set the node to render when array is empty */
+  empty(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.empty = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
+    return this;
+  }
+
+  /** Set the separator node between items */
+  separator(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.separator = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
+    return this;
+  }
+
+  // === LAYOUT CONFIGURATION ===
+
+  /** Set width */
+  width(w: WidthSpec): this {
+    this.node.width = w;
+    return this;
+  }
+
+  /** Set padding */
+  padding(p: PaddingSpec): this {
+    this.node.padding = p;
+    return this;
+  }
+
+  /** Set margin */
+  margin(m: MarginSpec): this {
+    this.node.margin = m;
+    return this;
+  }
+
+  // === PAGINATION HINTS ===
+
+  /** Force a page break before this node */
+  breakBefore(on: boolean = true): this {
+    this.node.breakBefore = on;
+    return this;
+  }
+
+  /** Force a page break after this node */
+  breakAfter(on: boolean = true): this {
+    this.node.breakAfter = on;
+    return this;
+  }
+
+  /** Keep this node together on the same page if possible */
+  keepTogether(on: boolean = true): this {
+    this.node.keepTogether = on;
+    return this;
+  }
+
+  /** Build and return the each node */
+  build(): EachNode {
+    return this.node;
+  }
+}
+
+// ==================== FACTORY FUNCTIONS FOR NEW BUILDERS ====================
+
+/**
+ * Create a new template builder for text with {{variable}} interpolation
+ *
+ * @param templateString - Template string with {{variable}} placeholders
+ *
+ * @example
+ * ```typescript
+ * template('Hello {{name}}!')
+ *   .bold()
+ *   .build()
+ * ```
+ */
+export function template(templateString: string): TemplateBuilder {
+  return new TemplateBuilder(templateString);
+}
+
+/**
+ * Create a new conditional builder for if/else-if/else branching
+ *
+ * @example
+ * ```typescript
+ * conditional()
+ *   .ifPath('user.isPremium', 'eq', true)
+ *   .then(text('Premium!'))
+ *   .else(text('Standard'))
+ *   .build()
+ * ```
+ */
+export function conditional(): ConditionalBuilder {
+  return new ConditionalBuilder();
+}
+
+/**
+ * Create a new switch builder for case matching
+ *
+ * @param path - Path to the value to switch on
+ *
+ * @example
+ * ```typescript
+ * switchOn('status')
+ *   .case('active', text('Active'))
+ *   .case('pending', text('Pending'))
+ *   .default(text('Unknown'))
+ *   .build()
+ * ```
+ */
+export function switchOn(path: string): SwitchBuilder {
+  return new SwitchBuilder(path);
+}
+
+/**
+ * Create a new each builder for iterating over arrays
+ *
+ * @param itemsPath - Path to the array in data context
+ *
+ * @example
+ * ```typescript
+ * each('items')
+ *   .as('item')
+ *   .render(template('{{item.name}}: {{item.price | currency}}'))
+ *   .empty(text('No items'))
+ *   .build()
+ * ```
+ */
+export function each(itemsPath: string): EachBuilder {
+  return new EachBuilder(itemsPath);
 }

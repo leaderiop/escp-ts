@@ -13,7 +13,7 @@ describe('LayoutEngine', () => {
       const state = engine.getState();
 
       expect(state.font.cpi).toBe(10);
-      expect(state.paper.widthInches).toBe(8.5);
+      expect(state.paper.widthInches).toBeCloseTo(1069 / 72); // 14.847 inches
     });
 
     it('creates engine with custom options', () => {
@@ -535,8 +535,8 @@ describe('LayoutEngine', () => {
   describe('DEFAULT_ENGINE_OPTIONS', () => {
     it('has correct defaults', () => {
       expect(DEFAULT_ENGINE_OPTIONS.profile).toBe(LQ_2090II_PROFILE);
-      expect(DEFAULT_ENGINE_OPTIONS.defaultPaper.widthInches).toBe(8.5);
-      expect(DEFAULT_ENGINE_OPTIONS.defaultPaper.heightInches).toBe(11);
+      expect(DEFAULT_ENGINE_OPTIONS.defaultPaper.widthInches).toBeCloseTo(1069 / 72); // 14.847 inches
+      expect(DEFAULT_ENGINE_OPTIONS.defaultPaper.heightInches).toBeCloseTo(615 / 72); // 8.542 inches
       expect(DEFAULT_ENGINE_OPTIONS.autoWrap).toBe(true);
       expect(DEFAULT_ENGINE_OPTIONS.strict).toBe(false);
     });

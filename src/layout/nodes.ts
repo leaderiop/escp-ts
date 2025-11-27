@@ -123,7 +123,7 @@ export type VAlign = 'top' | 'center' | 'bottom';
 /**
  * Flex justify content options
  */
-export type JustifyContent = 'start' | 'center' | 'end' | 'space-between' | 'space-around';
+export type JustifyContent = 'start' | 'center' | 'end' | 'space-between' | 'space-around' | 'space-evenly';
 
 // ==================== STYLE PROPERTIES ====================
 
@@ -239,6 +239,42 @@ export type ContentCondition =
   | ((ctx: SpaceContext) => boolean)
   | SpaceQuery;
 
+// ==================== DATA CONTEXT (for template/component system) ====================
+
+/**
+ * Data context for variable interpolation and data-driven conditionals
+ * Passed through the layout pipeline when rendering with data
+ */
+export interface DataContext<T = unknown> {
+  /** The data object passed during rendering */
+  data: T;
+  /** Space context from measure phase */
+  space: SpaceContext;
+  /** Current item index (for iteration with EachNode) */
+  index?: number;
+  /** Total item count (for iteration with EachNode) */
+  total?: number;
+}
+
+/**
+ * Content resolver function for dynamic text content
+ * Called during node resolution to generate text from data
+ */
+export type ContentResolver<T = unknown> = (ctx: DataContext<T>) => string;
+
+/**
+ * Data-driven condition for conditional rendering
+ * Evaluates a data path against a comparison value
+ */
+export interface DataCondition {
+  /** Path to data value (e.g., 'user.name', 'items[0].price') */
+  path: string;
+  /** Comparison operator */
+  operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'notIn' | 'exists' | 'notExists' | 'empty' | 'notEmpty';
+  /** Value to compare against (not needed for exists/empty operators) */
+  value?: unknown;
+}
+
 // ==================== POSITIONING ====================
 
 /**
@@ -253,6 +289,14 @@ export type PositionMode = 'static' | 'relative' | 'absolute';
  * Text orientation for vertical text support
  */
 export type TextOrientation = 'horizontal' | 'vertical';
+
+/**
+ * Text overflow behavior when content exceeds available width
+ * - 'visible': Content overflows (default, current behavior)
+ * - 'clip': Content is truncated at boundary
+ * - 'ellipsis': Content is truncated with '...' appended
+ */
+export type TextOverflow = 'visible' | 'clip' | 'ellipsis';
 
 // ==================== BASE NODE ====================
 
@@ -360,6 +404,8 @@ export interface GridNode extends LayoutNodeBase {
   rowGap?: number;
   /** Row definitions containing cells */
   rows: GridRowNode[];
+  /** Default overflow behavior for cells: 'visible', 'clip' (default), or 'ellipsis' */
+  cellOverflow?: TextOverflow;
 }
 
 /**
@@ -387,10 +433,14 @@ export interface TextNode extends LayoutNodeBase {
   type: 'text';
   /** Text content to print */
   content: string;
+  /** Dynamic content resolver (takes precedence over content when data context is available) */
+  contentResolver?: ContentResolver;
   /** Horizontal alignment within available width */
   align?: HAlign;
   /** Text orientation: 'horizontal' (default) or 'vertical' */
   orientation?: TextOrientation;
+  /** Overflow behavior: 'visible' (default), 'clip', or 'ellipsis' */
+  overflow?: TextOverflow;
 }
 
 /**
@@ -420,6 +470,80 @@ export interface LineNode extends LayoutNodeBase {
   char?: string | undefined;
 }
 
+// ==================== TEMPLATE/COMPONENT NODES ====================
+
+/**
+ * Template node - text with {{variable}} interpolation syntax
+ * Resolved to TextNode during node resolution phase
+ */
+export interface TemplateNode extends LayoutNodeBase {
+  type: 'template';
+  /** Template string with {{variable}} placeholders (e.g., "Hello {{name}}!") */
+  template: string;
+  /** Local data to merge with context data */
+  data?: Record<string, unknown>;
+  /** Horizontal alignment within available width */
+  align?: HAlign;
+}
+
+/**
+ * Conditional node - if/else-if/else branching based on data
+ * Resolved to the matching branch during node resolution phase
+ */
+export interface ConditionalNode extends LayoutNodeBase {
+  type: 'conditional';
+  /** Primary condition (the "if" clause) */
+  condition: DataCondition | ((ctx: DataContext) => boolean);
+  /** Node to render when condition is true */
+  then: LayoutNode;
+  /** Optional else-if chains */
+  elseIf?: Array<{
+    condition: DataCondition | ((ctx: DataContext) => boolean);
+    then: LayoutNode;
+  }>;
+  /** Node to render when all conditions are false */
+  else?: LayoutNode;
+}
+
+/**
+ * Switch node - multi-branch selection based on data value
+ * Resolved to the matching case during node resolution phase
+ */
+export interface SwitchNode extends LayoutNodeBase {
+  type: 'switch';
+  /** Path to the value being switched on (e.g., 'status', 'user.role') */
+  path: string;
+  /** Case branches */
+  cases: Array<{
+    /** Value(s) that match this case */
+    value: unknown | unknown[];
+    /** Node to render for this case */
+    then: LayoutNode;
+  }>;
+  /** Default node when no cases match */
+  default?: LayoutNode;
+}
+
+/**
+ * Each node - iteration over array data
+ * Resolved to a stack of rendered items during node resolution phase
+ */
+export interface EachNode extends LayoutNodeBase {
+  type: 'each';
+  /** Path to the array in data context (e.g., 'items', 'order.lineItems') */
+  items: string;
+  /** Variable name for current item (default: 'item') */
+  as?: string;
+  /** Variable name for current index (default: 'index') */
+  indexAs?: string;
+  /** Node template to render for each item */
+  render: LayoutNode;
+  /** Node to render when array is empty */
+  empty?: LayoutNode;
+  /** Node to render between items (separator) */
+  separator?: LayoutNode;
+}
+
 // ==================== UNION TYPE ====================
 
 /**
@@ -431,7 +555,11 @@ export type LayoutNode =
   | GridNode
   | TextNode
   | SpacerNode
-  | LineNode;
+  | LineNode
+  | TemplateNode
+  | ConditionalNode
+  | SwitchNode
+  | EachNode;
 
 /**
  * Type guard to check if a node is a container (has children)
@@ -480,6 +608,42 @@ export function isSpacerNode(node: LayoutNode): node is SpacerNode {
  */
 export function isLineNode(node: LayoutNode): node is LineNode {
   return node.type === 'line';
+}
+
+/**
+ * Type guard to check if a node is a template node
+ */
+export function isTemplateNode(node: LayoutNode): node is TemplateNode {
+  return node.type === 'template';
+}
+
+/**
+ * Type guard to check if a node is a conditional node
+ */
+export function isConditionalNode(node: LayoutNode): node is ConditionalNode {
+  return node.type === 'conditional';
+}
+
+/**
+ * Type guard to check if a node is a switch node
+ */
+export function isSwitchNode(node: LayoutNode): node is SwitchNode {
+  return node.type === 'switch';
+}
+
+/**
+ * Type guard to check if a node is an each node
+ */
+export function isEachNode(node: LayoutNode): node is EachNode {
+  return node.type === 'each';
+}
+
+/**
+ * Type guard to check if a node is a resolvable node (needs data context)
+ * These nodes are resolved to static nodes before measurement
+ */
+export function isResolvableNode(node: LayoutNode): node is TemplateNode | ConditionalNode | SwitchNode | EachNode {
+  return node.type === 'template' || node.type === 'conditional' || node.type === 'switch' || node.type === 'each';
 }
 
 /**
@@ -545,7 +709,7 @@ export function resolveMargin(margin?: MarginSpec): ResolvedMargin {
     right: typeof margin.right === 'number' ? margin.right : 0,
     bottom: margin.bottom ?? 0,
     left: typeof margin.left === 'number' ? margin.left : 0,
-    autoHorizontal: autoHorizontal || undefined,
+    ...(autoHorizontal && { autoHorizontal: true }),
   };
 }
 

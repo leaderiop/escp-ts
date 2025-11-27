@@ -341,6 +341,104 @@ describe('paginateLayout', () => {
   });
 });
 
+describe('absolute positioning in pagination', () => {
+  it('preserves Y position for absolute positioned items', () => {
+    const node = stack()
+      .absolutePosition(100, 200)
+      .text('Absolute')
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    // Find the absolute item - should maintain Y=200
+    const item = result.pages[0]?.items.find(i => i.x === 100);
+    expect(item).toBeDefined();
+    expect(item?.y).toBe(200);
+  });
+
+  it('places absolute item on correct page based on Y coordinate', () => {
+    // TEST_PAGE_CONFIG.pageHeight is 400
+    // Y=500 should be on page 1 (index 1), with page-relative Y = 100
+    const node = stack()
+      .absolutePosition(0, 500)
+      .text('Page 2 Content')
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    expect(result.pageCount).toBeGreaterThanOrEqual(2);
+    // Item should be on second page with page-relative Y = 500 - 400 = 100
+    const page2Items = result.pages[1]?.items ?? [];
+    expect(page2Items.length).toBeGreaterThan(0);
+    expect(page2Items[0]?.y).toBe(100);
+  });
+
+  it('does not adjust absolute item Y when surrounded by flow items', () => {
+    // Use x=200 for absolute item to distinguish from flow items (which start at x=50)
+    const node = stack()
+      .text('Flow 1')
+      .add(stack().absolutePosition(200, 150).text('Absolute'))
+      .text('Flow 2')
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    // Flow items are adjusted, but absolute item maintains Y=150
+    const absItem = result.pages[0]?.items.find(i => i.x === 200);
+    expect(absItem).toBeDefined();
+    expect(absItem?.y).toBe(150);
+  });
+
+  it('handles multiple absolute items on different pages', () => {
+    // First item at Y=50 (page 0), second at Y=450 (page 1)
+    const node = stack()
+      .add(stack().absolutePosition(10, 50).text('Page 1 Abs'))
+      .add(stack().absolutePosition(20, 450).text('Page 2 Abs'))
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    expect(result.pageCount).toBeGreaterThanOrEqual(2);
+    // Page 0: item at Y=50, X=10
+    expect(result.pages[0]?.items.some(i => i.y === 50 && i.x === 10)).toBe(true);
+    // Page 1: item at Y=50 (450 - 400), X=20
+    expect(result.pages[1]?.items.some(i => i.y === 50 && i.x === 20)).toBe(true);
+  });
+
+  it('absolute item at Y=0 stays at Y=0', () => {
+    const node = stack()
+      .absolutePosition(100, 0)
+      .text('At Origin')
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    const item = result.pages[0]?.items.find(i => i.x === 100);
+    expect(item).toBeDefined();
+    expect(item?.y).toBe(0);
+  });
+
+  it('handles negative Y as page 0, Y=0', () => {
+    const node = stack()
+      .absolutePosition(50, -50)
+      .text('Negative Y')
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    // Should be on page 0 with Y=0 (negative treated as 0)
+    const item = result.pages[0]?.items.find(i => i.x === 50);
+    expect(item).toBeDefined();
+    expect(item?.y).toBe(0);
+  });
+});
+
 describe('createPageConfig', () => {
   it('calculates printableHeight correctly', () => {
     const config = createPageConfig(1000, 100, 100);

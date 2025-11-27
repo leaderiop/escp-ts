@@ -161,7 +161,16 @@ export type {
   ContentCondition,
   PositionMode,
   TextOrientation,
+  TextOverflow,
   FlexWrap,
+  // Template/Component system types
+  DataContext,
+  DataCondition,
+  ContentResolver,
+  TemplateNode,
+  ConditionalNode,
+  SwitchNode,
+  EachNode,
 } from './layout/nodes';
 
 export {
@@ -180,6 +189,12 @@ export {
   isSpacerNode,
   isLineNode,
   assertNever,
+  // Template/Component system type guards
+  isTemplateNode,
+  isConditionalNode,
+  isSwitchNode,
+  isEachNode,
+  isResolvableNode,
 } from './layout/nodes';
 
 // Layout system - Builders
@@ -194,6 +209,15 @@ export {
   spacer,
   line,
   spaceQuery,
+  // Template/Component builders
+  TemplateBuilder,
+  ConditionalBuilder,
+  SwitchBuilder,
+  EachBuilder,
+  template,
+  conditional,
+  switchOn,
+  each,
   type TextOptions,
   type CellOptions,
 } from './layout/builders';
@@ -234,6 +258,47 @@ export {
   type PageSegment,
   type PaginatedLayoutResult,
 } from './layout/pagination';
+
+// Layout system - Template Interpolation
+export {
+  interpolate,
+  parseTemplate,
+  resolvePath,
+  defaultFilters,
+  createFilterRegistry,
+  type VariableExpression,
+  type FilterCall,
+  type FilterFunction,
+  type FilterRegistry,
+} from './layout/interpolation';
+
+// Layout system - Conditional Evaluation
+export {
+  evaluateCondition,
+  evaluateDataCondition,
+  matchesCaseValue,
+  // Helper functions for creating conditions
+  eq,
+  neq,
+  gt,
+  gte,
+  lt,
+  lte,
+  isIn,
+  notIn,
+  exists,
+  notExists,
+  empty,
+  notEmpty,
+} from './layout/conditionals';
+
+// Layout system - Node Resolution
+export {
+  resolveNode,
+  createDataContext,
+  createDefaultSpaceContext,
+  type ResolverOptions,
+} from './layout/resolver';
 
 // Virtual renderer
 export {

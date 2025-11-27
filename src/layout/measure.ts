@@ -22,8 +22,10 @@ import type {
   SpaceContext,
   ContentCondition,
   LayoutNodeBase,
+  DataContext,
 } from './nodes';
-import { resolvePadding, resolveMargin, resolveStyle, DEFAULT_STYLE, isPercentage, parsePercentage, resolvePercentage } from './nodes';
+import { resolvePadding, resolveMargin, resolveStyle, DEFAULT_STYLE, isPercentage, parsePercentage, resolvePercentage, isResolvableNode } from './nodes';
+import { resolveNode } from './resolver';
 import { calculateTextWidth, getCharacterWidth } from '../fonts/CharacterSet';
 
 // ==================== MEASURE CONTEXT ====================
@@ -42,6 +44,8 @@ export interface MeasureContext {
   interCharSpace: number;
   /** Current inherited style */
   style: ResolvedStyle;
+  /** Data context for template/conditional resolution */
+  dataContext?: DataContext;
 }
 
 /**
@@ -468,10 +472,11 @@ function measureFlexNode(
     let currentLineHeight = 0;
 
     measuredChildren.forEach((child, i) => {
-      const childWidth = child.preferredWidth + (i > currentLineStart ? gap : 0);
+      const childWidth = child.preferredWidth;
+      const gapBefore = (i > currentLineStart) ? gap : 0;
 
-      // Check if child fits on current line
-      if (currentLineWidth + childWidth > contentAreaWidth && i > currentLineStart) {
+      // Check if child fits on current line (with gap if not first item on line)
+      if (currentLineWidth + gapBefore + childWidth > contentAreaWidth && i > currentLineStart) {
         // Save current line
         flexLines!.push({
           startIndex: currentLineStart,
@@ -480,13 +485,13 @@ function measureFlexNode(
           width: currentLineWidth,
         });
 
-        // Start new line
+        // Start new line - no gap for first item
         currentLineStart = i;
-        currentLineWidth = child.preferredWidth;
+        currentLineWidth = childWidth;
         currentLineHeight = child.preferredHeight;
       } else {
-        // Add to current line
-        currentLineWidth += childWidth;
+        // Add to current line (with gap if not first item)
+        currentLineWidth += gapBefore + childWidth;
         currentLineHeight = Math.max(currentLineHeight, child.preferredHeight);
       }
     });
@@ -544,7 +549,7 @@ function measureFlexNode(
     margin,
     style,
     children: measuredChildren,
-    flexLines,
+    ...(flexLines && { flexLines }),
   };
 }
 
@@ -726,6 +731,27 @@ export function measureNode(
   parentStyle: ResolvedStyle = DEFAULT_STYLE,
   pageNumber: number = 0
 ): MeasuredNode {
+  // Resolve dynamic nodes (template, conditional, switch, each) when data context is available
+  if (ctx.dataContext && isResolvableNode(node)) {
+    const resolved = resolveNode(node, ctx.dataContext);
+    if (!resolved) {
+      // Node resolved to null (e.g., condition not met) - return zero-size measurement
+      return {
+        node,
+        minContentWidth: 0,
+        minContentHeight: 0,
+        preferredWidth: 0,
+        preferredHeight: 0,
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        style: parentStyle,
+        children: [],
+      };
+    }
+    // Continue measuring the resolved node
+    node = resolved;
+  }
+
   // Check for conditional content
   const nodeBase = node as LayoutNodeBase;
   if (nodeBase.when !== undefined) {

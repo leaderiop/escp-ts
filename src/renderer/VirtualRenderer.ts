@@ -510,7 +510,9 @@ export class VirtualRenderer {
               const nL = data[i++] ?? 0;
               const nH = data[i++] ?? 0;
               const pos = nL + nH * 256;
-              this.state.x = this.state.paper.margins.left + pos * 6; // Convert units
+              // Position is absolute from page origin (0,0)
+              // Units are 1/60 inch, convert to 360 DPI dots
+              this.state.x = pos * 6;
             }
             break;
 

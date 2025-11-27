@@ -34,8 +34,8 @@ describe('VirtualRenderer', () => {
       const r = new VirtualRenderer({}, { scale: 2 });
       r.lineFeed(); // Move y to include page
       const page = r.getPage();
-      // Default 8.5 inches at 360 DPI * 2 = 6120 pixels
-      expect(page?.width).toBe(6120);
+      // Default 14.847 inches at 360 DPI * 2 = 10690 pixels
+      expect(page?.width).toBe(Math.round((1069 / 72) * 360 * 2));
     });
 
     it('creates renderer with showMargins option', () => {

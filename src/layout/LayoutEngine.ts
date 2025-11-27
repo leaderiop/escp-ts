@@ -38,12 +38,13 @@ import type {
 } from '../core/types';
 
 // Layout system imports
-import type { LayoutNode, WidthSpec } from './nodes';
+import type { LayoutNode, WidthSpec, DataContext } from './nodes';
 import { measureNode, type MeasureContext } from './measure';
 import { performLayout } from './layout';
-import { renderLayout } from './renderer';
+import { renderPageItems } from './renderer';
 import { paginateLayout, createPageConfig } from './pagination';
 import { StackBuilder, FlexBuilder, GridBuilder, stack, flex, grid } from './builders';
+import { createDataContext } from './resolver';
 
 /**
  * Default LQ-2090II printer profile
@@ -103,6 +104,7 @@ export class LayoutEngine {
   private output: Uint8Array[] = [];
   private pages: Page[] = [];
   private currentPageElements: LayoutElement[] = [];
+  private dataContext: DataContext | undefined;
 
   constructor(options: Partial<LayoutEngineOptions> = {}) {
     this.options = { ...DEFAULT_ENGINE_OPTIONS, ...options };
@@ -899,6 +901,8 @@ export class LayoutEngine {
         condensed: state.font.style.condensed,
         cpi: state.font.cpi,
       },
+      // Only include dataContext if it's defined (for exactOptionalPropertyTypes)
+      ...(this.dataContext && { dataContext: this.dataContext }),
     };
 
     // Phase 1: Measure
@@ -945,20 +949,19 @@ export class LayoutEngine {
         this.currentPageElements = [];
       }
 
-      // Render all items on this page
-      for (const item of page.items) {
-        const renderResult = renderLayout(item, {
-          startX: state.paper.margins.left,
-          startY: page.startY,
-          charset: state.internationalCharset,
-          charTable: state.charTable,
-          lineSpacing: state.lineSpacing,
-          initialStyle: measureCtx.style,
-        });
+      // Render all items on this page together in a single context
+      // This is critical for maintaining printer head position across items
+      const renderResult = renderPageItems(page.items, {
+        startX: state.paper.margins.left,
+        startY: page.startY,
+        charset: state.internationalCharset,
+        charTable: state.charTable,
+        lineSpacing: state.lineSpacing,
+        initialStyle: measureCtx.style,
+      });
 
-        this.emit(renderResult.commands);
-        finalY = renderResult.finalY;
-      }
+      this.emit(renderResult.commands);
+      finalY = renderResult.finalY;
     }
 
     // Update position to after the layout
@@ -1021,6 +1024,81 @@ export class LayoutEngine {
    */
   createGrid(columns: WidthSpec[]): GridBuilder {
     return grid(columns);
+  }
+
+  // ==================== DATA CONTEXT ====================
+
+  /**
+   * Set data context for template/conditional nodes
+   *
+   * When a data context is set, the layout system will:
+   * - Resolve TemplateNodes by interpolating {{variable}} placeholders
+   * - Evaluate ConditionalNodes against data conditions
+   * - Process SwitchNodes by matching case values
+   * - Expand EachNodes by iterating over arrays
+   *
+   * @param data - Data object for template interpolation and conditions
+   * @returns this for chaining
+   *
+   * @example
+   * ```typescript
+   * engine
+   *   .setData({
+   *     customer: { name: 'John', isPremium: true },
+   *     items: [
+   *       { name: 'Widget', qty: 5, price: 10 },
+   *       { name: 'Gadget', qty: 2, price: 25 }
+   *     ]
+   *   })
+   *   .render(receiptLayout)
+   *   .clearData();
+   * ```
+   */
+  setData<T = unknown>(data: T): this {
+    const state = this.stateManager.getState();
+    this.dataContext = createDataContext(data, {
+      availableWidth: getPrintableWidth(state.paper),
+      availableHeight: getPageHeight(state.paper) - state.y,
+      remainingWidth: getPrintableWidth(state.paper),
+      remainingHeight: getPageHeight(state.paper) - state.y,
+      pageNumber: this.pages.length,
+    });
+    return this;
+  }
+
+  /**
+   * Clear the data context
+   *
+   * Call this after rendering with data to ensure subsequent renders
+   * don't unexpectedly use stale data.
+   *
+   * @returns this for chaining
+   */
+  clearData(): this {
+    this.dataContext = undefined;
+    return this;
+  }
+
+  /**
+   * Render a layout with data in a single call
+   *
+   * This is a convenience method that combines setData, render, and clearData.
+   * Useful for one-off renders where you don't need to retain the data context.
+   *
+   * @param node - The layout node to render
+   * @param data - Data object for template interpolation and conditions
+   * @returns this for chaining
+   *
+   * @example
+   * ```typescript
+   * engine.renderWithData(receiptLayout, {
+   *   customer: { name: 'John' },
+   *   total: 125.50
+   * });
+   * ```
+   */
+  renderWithData<T = unknown>(node: LayoutNode, data: T): this {
+    return this.setData(data).render(node).clearData();
   }
 
   // ==================== DOCUMENT BUILDING ====================

@@ -51,14 +51,14 @@ describe('PrinterState', () => {
     it('DEFAULT_MARGINS has correct values', () => {
       expect(DEFAULT_MARGINS.top).toBe(90);
       expect(DEFAULT_MARGINS.bottom).toBe(90);
-      expect(DEFAULT_MARGINS.left).toBe(90);
-      expect(DEFAULT_MARGINS.right).toBe(90);
+      expect(DEFAULT_MARGINS.left).toBe(225);
+      expect(DEFAULT_MARGINS.right).toBe(225);
     });
 
-    it('DEFAULT_PAPER_CONFIG has US Letter dimensions', () => {
-      expect(DEFAULT_PAPER_CONFIG.widthInches).toBe(8.5);
-      expect(DEFAULT_PAPER_CONFIG.heightInches).toBe(11);
-      expect(DEFAULT_PAPER_CONFIG.linesPerPage).toBe(66);
+    it('DEFAULT_PAPER_CONFIG has custom wide format dimensions', () => {
+      expect(DEFAULT_PAPER_CONFIG.widthInches).toBeCloseTo(1069 / 72); // 14.847 inches
+      expect(DEFAULT_PAPER_CONFIG.heightInches).toBeCloseTo(615 / 72); // 8.542 inches
+      expect(DEFAULT_PAPER_CONFIG.linesPerPage).toBe(51);
     });
   });
 
@@ -68,7 +68,7 @@ describe('PrinterState', () => {
     it('creates state with defaults', () => {
       const state = createInitialState();
 
-      expect(state.x).toBe(90); // Left margin
+      expect(state.x).toBe(225); // Left margin
       expect(state.y).toBe(90); // Top margin
       expect(state.page).toBe(0);
       expect(state.font.cpi).toBe(10);
@@ -87,7 +87,7 @@ describe('PrinterState', () => {
       expect(state.paper.margins.top).toBe(50);
       expect(state.paper.margins.left).toBe(50);
       expect(state.paper.margins.bottom).toBe(90); // Default
-      expect(state.paper.margins.right).toBe(90); // Default
+      expect(state.paper.margins.right).toBe(225); // Default
     });
 
     it('merges custom font config', () => {
@@ -354,8 +354,8 @@ describe('PrinterState', () => {
     describe('constructor', () => {
       it('creates with default state', () => {
         const state = manager.getState();
-        expect(state.x).toBe(90);
-        expect(state.y).toBe(90);
+        expect(state.x).toBe(225); // Left margin
+        expect(state.y).toBe(90);  // Top margin
       });
 
       it('accepts initial state overrides', () => {
@@ -446,7 +446,7 @@ describe('PrinterState', () => {
 
       it('clamps to left margin', () => {
         manager.moveTo(0, 100);
-        expect(manager.getState().x).toBe(90); // Left margin
+        expect(manager.getState().x).toBe(225); // Left margin
       });
 
       it('clamps to top margin', () => {
@@ -483,7 +483,7 @@ describe('PrinterState', () => {
       it('moves to left margin', () => {
         manager.moveTo(500, 200);
         manager.carriageReturn();
-        expect(manager.getState().x).toBe(90); // Left margin
+        expect(manager.getState().x).toBe(225); // Left margin
         expect(manager.getState().y).toBe(200); // Y unchanged
       });
     });
@@ -507,7 +507,7 @@ describe('PrinterState', () => {
       it('performs CR + LF', () => {
         manager.moveTo(500, 200);
         manager.newLine();
-        expect(manager.getState().x).toBe(90);
+        expect(manager.getState().x).toBe(225); // Left margin
         expect(manager.getState().y).toBe(260);
       });
     });
@@ -522,8 +522,8 @@ describe('PrinterState', () => {
       it('resets position to top-left margin', () => {
         manager.moveTo(500, 2000);
         manager.formFeed();
-        expect(manager.getState().x).toBe(90);
-        expect(manager.getState().y).toBe(90);
+        expect(manager.getState().x).toBe(225); // Left margin
+        expect(manager.getState().y).toBe(90);  // Top margin
       });
     });
 
@@ -545,7 +545,9 @@ describe('PrinterState', () => {
       });
 
       it('returns true when at right margin', () => {
-        manager.moveTo(2970, 100); // At right edge
+        // Paper width: 1069/72 * 360 = 5345 dots, right margin: 225 dots
+        // Right edge: 5345 - 225 = 5120 dots
+        manager.moveTo(5050, 100); // Near right edge
         expect(manager.checkLineWrap(100)).toBe(true);
       });
     });
@@ -556,22 +558,22 @@ describe('PrinterState', () => {
       });
 
       it('wraps and returns true when needed', () => {
-        manager.moveTo(3000, 100); // Past right edge
+        manager.moveTo(5500, 100); // Past right edge
         expect(manager.wrapLine()).toBe(true);
-        expect(manager.getState().x).toBe(90);
+        expect(manager.getState().x).toBe(225); // Left margin
         expect(manager.getState().y).toBe(160);
       });
     });
 
     describe('horizontalTab', () => {
       it('moves to next tab stop', () => {
-        manager.moveTo(90, 100); // At left margin
+        manager.moveTo(225, 100); // At left margin
         manager.horizontalTab();
-        expect(manager.getState().x).toBe(90 + 8 * 36); // First tab at column 8
+        expect(manager.getState().x).toBe(225 + 8 * 36); // First tab at column 8
       });
 
       it('does nothing when no more tabs', () => {
-        manager.moveTo(90 + 130 * 36, 100); // Past all tabs
+        manager.moveTo(225 + 130 * 36, 100); // Past all tabs
         const x = manager.getState().x;
         manager.horizontalTab();
         expect(manager.getState().x).toBe(x);
@@ -595,13 +597,13 @@ describe('PrinterState', () => {
 
     describe('getNextHorizontalTab', () => {
       it('returns next tab position', () => {
-        manager.moveTo(90, 100);
+        manager.moveTo(225, 100); // At left margin
         const nextTab = manager.getNextHorizontalTab();
-        expect(nextTab).toBe(90 + 8 * 36);
+        expect(nextTab).toBe(225 + 8 * 36);
       });
 
       it('returns null when no more tabs', () => {
-        manager.moveTo(90 + 130 * 36, 100);
+        manager.moveTo(225 + 130 * 36, 100); // Past all tabs
         expect(manager.getNextHorizontalTab()).toBeNull();
       });
     });
@@ -623,8 +625,8 @@ describe('PrinterState', () => {
         manager.moveTo(500, 500);
         manager.updateFontStyle({ bold: true });
         manager.reset();
-        expect(manager.getState().x).toBe(90);
-        expect(manager.getState().y).toBe(90);
+        expect(manager.getState().x).toBe(225); // Left margin
+        expect(manager.getState().y).toBe(90);  // Top margin
         expect(manager.getState().font.style.bold).toBe(false);
       });
 

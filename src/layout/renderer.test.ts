@@ -234,7 +234,17 @@ describe('renderer', () => {
       const layout = layoutFromNode(text('Test'));
       const result = renderLayout(layout, { startX: 100, startY: 200 });
 
-      expect(result.finalY).toBeGreaterThanOrEqual(200);
+      // finalY reflects layout coordinates, not page offset
+      // The layout starts at y=90 (from layoutFromNode helper)
+      expect(result.finalY).toBeGreaterThan(0);
+
+      // Verify that positioning commands are emitted to move to the layout position
+      // The layout items are at y=90 in layout space, so ESC J should be emitted
+      // ESC J = 0x1B 0x4A
+      const hasVerticalPositioning = result.commands.some((cmd, i, arr) =>
+        cmd === 0x1B && arr[i + 1] === 0x4A
+      );
+      expect(hasVerticalPositioning).toBe(true);
     });
 
     it('applies initial style', () => {
@@ -464,6 +474,256 @@ describe('renderer', () => {
       // Should contain ESC J command for vertical advance
       const hex = toHex(result.commands);
       expect(hex).toContain('1B 4A'); // ESC J
+    });
+  });
+
+  // ==================== Grid columnGap=0 Bug Fix ====================
+
+  describe('grid columnGap=0', () => {
+    // Helper to find ESC $ commands and extract positions
+    function findEscDollarPositions(commands: Uint8Array): number[] {
+      const positions: number[] = [];
+      for (let i = 0; i < commands.length - 3; i++) {
+        if (commands[i] === 0x1B && commands[i + 1] === 0x24) {
+          const nL = commands[i + 2]!;
+          const nH = commands[i + 3]!;
+          const units = nL + nH * 256;
+          const dots = units * 6; // ESC $ uses 1/60 inch units, at 360 DPI = 6 dots
+          positions.push(dots);
+        }
+      }
+      return positions;
+    }
+
+    it('generates distinct ESC $ positions for columnGap=0', () => {
+      const layout = layoutFromNode(
+        grid([200, 200, 200])
+          .columnGap(0)
+          .cell('AAA').cell('BBB').cell('CCC').row()
+          .build()
+      );
+      const result = renderLayout(layout);
+      const positions = findEscDollarPositions(result.commands);
+
+      // Should have positioning commands for columns 2 and 3
+      // (column 1 starts at the current position, so may not need ESC $)
+      expect(positions.length).toBeGreaterThanOrEqual(2);
+
+      // Positions should be distinct and increasing
+      for (let i = 1; i < positions.length; i++) {
+        expect(positions[i]).toBeGreaterThan(positions[i - 1]!);
+      }
+    });
+
+    it('produces ESC $ commands for both columnGap=0 and columnGap=10', () => {
+      // This test ensures that columnGap=0 generates positioning commands
+      // (the bug was that columnGap=0 would NOT generate ESC $ commands)
+      const layoutGap0 = layoutFromNode(
+        grid([200, 200]).columnGap(0).cell('A').cell('B').row().build()
+      );
+      const layoutGap10 = layoutFromNode(
+        grid([200, 200]).columnGap(10).cell('A').cell('B').row().build()
+      );
+
+      const positionsGap0 = findEscDollarPositions(renderLayout(layoutGap0).commands);
+      const positionsGap10 = findEscDollarPositions(renderLayout(layoutGap10).commands);
+
+      // CRITICAL: Both should have positioning commands for the second column
+      // The bug was that gap=0 produced NO positioning commands
+      expect(positionsGap0.length).toBeGreaterThan(0);
+      expect(positionsGap10.length).toBeGreaterThan(0);
+    });
+
+    it('correctly tracks printer head position after printing text', () => {
+      // This test verifies the fix: ctx.currentX should track actual text width,
+      // not constraint/column width, to ensure ESC $ commands are generated
+      const layout = layoutFromNode(
+        grid([300, 300])  // Wide columns
+          .columnGap(0)
+          .cell('Hi').cell('There').row()  // Short text
+          .build()
+      );
+
+      const items = flattenTree(layout);
+      expect(items.length).toBe(2);
+
+      // Both items should have distinct X positions
+      expect(items[0]!.x).not.toBe(items[1]!.x);
+
+      // Render and verify positioning commands are generated
+      const result = renderLayout(layout);
+      const positions = findEscDollarPositions(result.commands);
+
+      // Should have positioning command for second column
+      // because actual text "Hi" is much shorter than column width 300
+      expect(positions.length).toBeGreaterThan(0);
+    });
+
+    // === Additional Regression Prevention Tests ===
+
+    it('handles very short text (single char) in wide columns with gap=0', () => {
+      // Edge case: Single character text in 300px columns
+      const layout = layoutFromNode(
+        grid([300, 300, 300])
+          .columnGap(0)
+          .cell('A').cell('B').cell('C').row()
+          .build()
+      );
+
+      const result = renderLayout(layout);
+      const positions = findEscDollarPositions(result.commands);
+
+      // Must generate ESC $ for columns 2 and 3 since "A" is ~36 dots but column is 300
+      expect(positions.length).toBeGreaterThanOrEqual(2);
+
+      // Positions should be increasing (column 2 < column 3)
+      expect(positions[1]).toBeGreaterThan(positions[0]!);
+
+      // The difference between positions should be approximately the column width (300 dots)
+      // Allow for ESC $ rounding (6 dots per unit)
+      const gap = positions[1]! - positions[0]!;
+      expect(gap).toBeGreaterThanOrEqual(294); // 300 - 6 (one unit rounding)
+      expect(gap).toBeLessThanOrEqual(306);    // 300 + 6
+    });
+
+    it('handles multi-row grid with varying text lengths and gap=0', () => {
+      const layout = layoutFromNode(
+        grid([200, 200, 200])
+          .columnGap(0)
+          .cell('Short').cell('Medium Text').cell('A').row()
+          .cell('X').cell('Y').cell('LongerText').row()
+          .build()
+      );
+
+      const items = flattenTree(layout);
+      expect(items.length).toBe(6);
+
+      // All items in same column should have same X position
+      const col1Items = [items[0], items[3]];
+      const col2Items = [items[1], items[4]];
+      const col3Items = [items[2], items[5]];
+
+      // Verify column alignment across rows
+      expect(col1Items[0]!.x).toBe(col1Items[1]!.x);
+      expect(col2Items[0]!.x).toBe(col2Items[1]!.x);
+      expect(col3Items[0]!.x).toBe(col3Items[1]!.x);
+
+      // Verify columns are at distinct positions
+      expect(col2Items[0]!.x).toBeGreaterThan(col1Items[0]!.x);
+      expect(col3Items[0]!.x).toBeGreaterThan(col2Items[0]!.x);
+
+      // Render and verify commands generated
+      const result = renderLayout(layout);
+      const positions = findEscDollarPositions(result.commands);
+      expect(positions.length).toBeGreaterThan(0);
+    });
+
+    it('handles many narrow columns with gap=0 (stress test)', () => {
+      const layout = layoutFromNode(
+        grid([80, 80, 80, 80, 80])
+          .columnGap(0)
+          .cell('1').cell('2').cell('3').cell('4').cell('5').row()
+          .build()
+      );
+
+      const items = flattenTree(layout);
+      expect(items.length).toBe(5);
+
+      // Each column should have increasing X position
+      for (let i = 1; i < items.length; i++) {
+        expect(items[i]!.x).toBeGreaterThan(items[i - 1]!.x);
+      }
+
+      // Verify ESC $ commands generated for columns 2-5
+      const result = renderLayout(layout);
+      const positions = findEscDollarPositions(result.commands);
+      expect(positions.length).toBeGreaterThanOrEqual(4);
+    });
+
+    it('verifies ESC $ command format (1B 24 nL nH)', () => {
+      const layout = layoutFromNode(
+        grid([200, 200]).columnGap(0).cell('A').cell('B').row().build()
+      );
+      const result = renderLayout(layout);
+
+      // Find ESC $ command and verify format
+      let foundEscDollar = false;
+      for (let i = 0; i < result.commands.length - 3; i++) {
+        if (result.commands[i] === 0x1B && result.commands[i + 1] === 0x24) {
+          foundEscDollar = true;
+          // Verify it's followed by nL and nH bytes
+          const nL = result.commands[i + 2];
+          const nH = result.commands[i + 3];
+          expect(nL).toBeDefined();
+          expect(nH).toBeDefined();
+          // nL and nH should be valid byte values (0-255)
+          expect(nL).toBeGreaterThanOrEqual(0);
+          expect(nL).toBeLessThanOrEqual(255);
+          expect(nH).toBeGreaterThanOrEqual(0);
+          expect(nH).toBeLessThanOrEqual(255);
+          break;
+        }
+      }
+      expect(foundEscDollar).toBe(true);
+    });
+
+    it('handles gap=0 with condensed text style', () => {
+      const condensedNode = grid([200, 200])
+        .columnGap(0)
+        .cell('Condensed')
+        .cell('Text')
+        .row()
+        .build();
+      // Apply condensed style
+      condensedNode.condensed = true;
+
+      const layout = layoutFromNode(condensedNode);
+      const result = renderLayout(layout);
+      const positions = findEscDollarPositions(result.commands);
+
+      // Should still generate ESC $ for column 2 (condensed chars are ~21 dots each)
+      expect(positions.length).toBeGreaterThan(0);
+    });
+
+    it('handles gap=0 with double-width text style', () => {
+      const doubleWidthNode = grid([400, 400])
+        .columnGap(0)
+        .cell('Wide')
+        .cell('Text')
+        .row()
+        .build();
+      // Apply double-width style
+      doubleWidthNode.doubleWidth = true;
+
+      const layout = layoutFromNode(doubleWidthNode);
+      const result = renderLayout(layout);
+      const positions = findEscDollarPositions(result.commands);
+
+      // Should generate ESC $ for column 2 (double-width chars are ~72 dots each at 10 CPI)
+      expect(positions.length).toBeGreaterThan(0);
+    });
+
+    it('generates different positions for gap=0 vs gap=1 vs gap=10', () => {
+      const createLayout = (gap: number) =>
+        layoutFromNode(
+          grid([200, 200, 200]).columnGap(gap)
+            .cell('A').cell('B').cell('C').row().build()
+        );
+
+      const posGap0 = findEscDollarPositions(renderLayout(createLayout(0)).commands);
+      const posGap1 = findEscDollarPositions(renderLayout(createLayout(1)).commands);
+      const posGap10 = findEscDollarPositions(renderLayout(createLayout(10)).commands);
+
+      // All should generate positioning commands
+      expect(posGap0.length).toBeGreaterThan(0);
+      expect(posGap1.length).toBeGreaterThan(0);
+      expect(posGap10.length).toBeGreaterThan(0);
+
+      // gap=10 positions should be further right than gap=0 (accounting for ESC $ 6-dot rounding)
+      // Column 3 position: gap=0 at ~400, gap=10 at ~420
+      if (posGap0.length >= 2 && posGap10.length >= 2) {
+        expect(posGap10[1]! - posGap0[1]!).toBeGreaterThanOrEqual(12); // ~20 dots difference, rounded to 6-dot units
+      }
     });
   });
 });

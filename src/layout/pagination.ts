@@ -85,6 +85,44 @@ interface PageableItem {
   isAtomic: boolean;
 }
 
+/**
+ * Result of separating items by position mode
+ */
+interface SeparatedItems {
+  flowItems: PageableItem[];
+  absoluteItems: LayoutResult[];
+}
+
+/**
+ * Recursively separate absolute positioned items from flow items
+ * Absolute items are extracted and will be handled separately
+ */
+function separateByPositionMode(items: PageableItem[]): SeparatedItems {
+  const flowItems: PageableItem[] = [];
+  const absoluteItems: LayoutResult[] = [];
+
+  for (const item of items) {
+    if (isAbsolutePositioned(item.layout)) {
+      // Extract absolute item - it will be handled separately
+      absoluteItems.push(item.layout);
+    } else if (item.children.length > 0 && !item.isAtomic) {
+      // Recursively process children for non-atomic containers
+      const separated = separateByPositionMode(item.children);
+      absoluteItems.push(...separated.absoluteItems);
+
+      // Keep flow item with only flow children
+      flowItems.push({
+        ...item,
+        children: separated.flowItems,
+      });
+    } else {
+      flowItems.push(item);
+    }
+  }
+
+  return { flowItems, absoluteItems };
+}
+
 // ==================== HELPER FUNCTIONS ====================
 
 /**
@@ -108,6 +146,13 @@ function hasKeepTogether(node: LayoutNode): boolean {
   return 'keepTogether' in node && node.keepTogether === true;
 }
 
+/**
+ * Check if a layout result is for an absolute positioned node
+ */
+function isAbsolutePositioned(layout: LayoutResult): boolean {
+  const node = layout.node;
+  return 'position' in node && (node as { position?: string }).position === 'absolute';
+}
 
 /**
  * Create a new page segment
@@ -240,7 +285,8 @@ function extractPageableItems(layout: LayoutResult): PageableItem[] {
   // Container nodes (stack, flex) can potentially be split
   if (isContainerNode(node)) {
     // If keepTogether is set and content is meant to stay together
-    if (hasKeepTogether(node)) {
+    // Also treat absolute positioned containers as atomic
+    if (hasKeepTogether(node) || isAbsolutePositioned(layout)) {
       return [{
         layout,
         height: layout.height,
@@ -342,7 +388,8 @@ function paginateItems(
   // Group items by Y position to handle flex rows correctly
   const yGroups = groupByY(items);
 
-  for (const group of yGroups) {
+  for (let groupIndex = 0; groupIndex < yGroups.length; groupIndex++) {
+    const group = yGroups[groupIndex]!;
     // Handle explicit breakBefore for any item in the group
     const hasBreakBefore = group.items.some(item => item.breakBefore);
     if (hasBreakBefore && currentPage.items.length > 0) {
@@ -386,9 +433,18 @@ function paginateItems(
       }
     }
 
-    // Update currentY to after this row (using max height of the group)
+    // Calculate gap to next group by looking at original Y positions
+    // The gap is embedded in the Y position differences from the layout phase
+    let gapAfterGroup = 0;
+    if (groupIndex + 1 < yGroups.length) {
+      const nextGroup = yGroups[groupIndex + 1]!;
+      // Gap = nextGroup.y - (currentGroup.y + currentGroup.height)
+      gapAfterGroup = Math.max(0, nextGroup.y - (group.y + group.maxHeight));
+    }
+
+    // Update currentY to after this row (using max height of the group + gap)
     currentPage.endY = ctx.currentY + groupHeight;
-    ctx.currentY += groupHeight;
+    ctx.currentY += groupHeight + gapAfterGroup;
 
     // Handle explicit breakAfter for any item in the group
     const hasBreakAfter = group.items.some(item => item.breakAfter);
@@ -401,6 +457,44 @@ function paginateItems(
   }
 
   return currentPage;
+}
+
+// ==================== ABSOLUTE POSITIONING ====================
+
+/**
+ * Distribute absolute positioned items to appropriate pages based on Y coordinate.
+ * Absolute items maintain their exact positions and are not adjusted by pagination flow.
+ */
+function distributeAbsoluteItems(
+  absoluteItems: LayoutResult[],
+  pages: PageSegment[],
+  pageConfig: PageConfig
+): void {
+  for (const item of absoluteItems) {
+    // Handle negative Y (treat as page 0)
+    const effectiveY = Math.max(0, item.y);
+
+    // Calculate which page this item belongs on based on Y position
+    const pageIndex = Math.floor(effectiveY / pageConfig.pageHeight);
+
+    // Ensure page exists (create additional pages if needed)
+    while (pages.length <= pageIndex) {
+      pages.push(createPageSegment(pages.length, pageConfig.topMargin));
+    }
+
+    // Calculate page-relative Y position
+    const pageRelativeY = effectiveY - (pageIndex * pageConfig.pageHeight);
+
+    // Adjust item to page-relative position
+    const adjustedItem = adjustLayoutY(item, pageRelativeY - item.y);
+    pages[pageIndex]!.items.push(adjustedItem);
+
+    // Update page endY if needed
+    const itemEndY = pageRelativeY + item.height;
+    if (pages[pageIndex]!.endY < itemEndY) {
+      pages[pageIndex]!.endY = itemEndY;
+    }
+  }
 }
 
 // ==================== MAIN FUNCTION ====================
@@ -431,8 +525,12 @@ export function paginateLayout(
   // Flatten nested items for simpler processing
   const flatItems = flattenPageableItems(items);
 
-  // Paginate the items
-  currentPage = paginateItems(flatItems, ctx, pages, currentPage);
+  // Separate absolute positioned items from flow items
+  // Absolute items bypass pagination flow and maintain exact positions
+  const { flowItems, absoluteItems } = separateByPositionMode(flatItems);
+
+  // Paginate flow items normally
+  currentPage = paginateItems(flowItems, ctx, pages, currentPage);
 
   // Add final page if it has content
   if (currentPage.items.length > 0) {
@@ -443,6 +541,10 @@ export function paginateLayout(
   if (pages.length === 0) {
     pages.push(createPageSegment(0, pageConfig.topMargin));
   }
+
+  // Distribute absolute items to appropriate pages based on Y coordinate
+  // This happens after flow pagination so page count is known
+  distributeAbsoluteItems(absoluteItems, pages, pageConfig);
 
   return {
     layout,
