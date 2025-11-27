@@ -301,7 +301,37 @@ function extractPageableItems(layout: LayoutResult): PageableItem[] {
 // ==================== PAGINATION ALGORITHM ====================
 
 /**
+ * Group items by their Y position for proper flex row handling
+ */
+interface YGroup {
+  y: number;
+  items: PageableItem[];
+  maxHeight: number;
+}
+
+function groupByY(items: PageableItem[]): YGroup[] {
+  const groups: YGroup[] = [];
+  let currentGroup: YGroup | null = null;
+
+  for (const item of items) {
+    const itemY = item.layout.y;
+
+    if (!currentGroup || itemY !== currentGroup.y) {
+      // Start new group
+      currentGroup = { y: itemY, items: [], maxHeight: 0 };
+      groups.push(currentGroup);
+    }
+
+    currentGroup.items.push(item);
+    currentGroup.maxHeight = Math.max(currentGroup.maxHeight, item.height);
+  }
+
+  return groups;
+}
+
+/**
  * Paginate a flat list of items
+ * Items are expected to be sorted by Y position
  */
 function paginateItems(
   items: PageableItem[],
@@ -309,68 +339,61 @@ function paginateItems(
   pages: PageSegment[],
   currentPage: PageSegment
 ): PageSegment {
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
-    if (!item) continue;
+  // Group items by Y position to handle flex rows correctly
+  const yGroups = groupByY(items);
 
+  for (const group of yGroups) {
     const remaining = getRemainingSpace(ctx);
 
-    // Handle explicit breakBefore
-    if (item.breakBefore && currentPage.items.length > 0) {
+    // Handle explicit breakBefore for any item in the group
+    const hasBreakBefore = group.items.some(item => item.breakBefore);
+    if (hasBreakBefore && currentPage.items.length > 0) {
       pages.push(currentPage);
       ctx.currentPageIndex++;
       ctx.currentY = ctx.pageConfig.topMargin;
       currentPage = createPageSegment(ctx.currentPageIndex, ctx.currentY);
     }
 
-    // Check if item fits on current page
-    const fitsOnCurrentPage = item.height <= remaining;
-    const fitsOnFreshPage = item.height <= ctx.pageConfig.printableHeight;
+    // Check if group fits on current page (use max height of group)
+    const groupHeight = group.maxHeight;
+    const fitsOnCurrentPage = groupHeight <= getRemainingSpace(ctx);
+    const fitsOnFreshPage = groupHeight <= ctx.pageConfig.printableHeight;
 
-    // Handle keepWithNext - check if this item and next fit together
-    if (item.keepWithNext && i + 1 < items.length) {
-      const nextItem = items[i + 1];
-      if (!nextItem) continue;
-      const combinedHeight = item.height + nextItem.height;
-
-      if (combinedHeight > remaining && combinedHeight <= ctx.pageConfig.printableHeight) {
-        // Move both to next page
-        if (currentPage.items.length > 0) {
-          pages.push(currentPage);
-          ctx.currentPageIndex++;
-          ctx.currentY = ctx.pageConfig.topMargin;
-          currentPage = createPageSegment(ctx.currentPageIndex, ctx.currentY);
-        }
-      }
-    }
-
-    // If item doesn't fit on current page
+    // If group doesn't fit on current page
     if (!fitsOnCurrentPage) {
-      // If item fits on a fresh page, start a new page
+      // If group fits on a fresh page, start a new page
       if (fitsOnFreshPage && currentPage.items.length > 0) {
         pages.push(currentPage);
         ctx.currentPageIndex++;
         ctx.currentY = ctx.pageConfig.topMargin;
         currentPage = createPageSegment(ctx.currentPageIndex, ctx.currentY);
       }
-      // If item is taller than a page, it will overflow (allowed)
+      // If group is taller than a page, it will overflow (allowed)
     }
 
-    // If item is a splittable container, paginate its children
-    if (!item.isAtomic && item.children.length > 0) {
-      currentPage = paginateItems(item.children, ctx, pages, currentPage);
-    } else {
-      // Add the item to current page with adjusted Y
-      const deltaY = ctx.currentY - item.layout.y;
-      const adjustedLayout = adjustLayoutY(item.layout, deltaY);
+    // Calculate the Y adjustment for this group
+    // All items in the group get the SAME adjustment
+    const groupDeltaY = ctx.currentY - group.y;
 
-      currentPage.items.push(adjustedLayout);
-      currentPage.endY = ctx.currentY + item.height;
-      ctx.currentY += item.height;
+    // Process all items in the group
+    for (const item of group.items) {
+      // If item is a splittable container, paginate its children
+      if (!item.isAtomic && item.children.length > 0) {
+        currentPage = paginateItems(item.children, ctx, pages, currentPage);
+      } else {
+        // Add the item to current page with group-adjusted Y
+        const adjustedLayout = adjustLayoutY(item.layout, groupDeltaY);
+        currentPage.items.push(adjustedLayout);
+      }
     }
 
-    // Handle explicit breakAfter
-    if (item.breakAfter && i < items.length - 1) {
+    // Update currentY to after this row (using max height of the group)
+    currentPage.endY = ctx.currentY + groupHeight;
+    ctx.currentY += groupHeight;
+
+    // Handle explicit breakAfter for any item in the group
+    const hasBreakAfter = group.items.some(item => item.breakAfter);
+    if (hasBreakAfter) {
       pages.push(currentPage);
       ctx.currentPageIndex++;
       ctx.currentY = ctx.pageConfig.topMargin;
@@ -432,6 +455,7 @@ export function paginateLayout(
 
 /**
  * Flatten nested pageable items into a single list
+ * Items are sorted by Y position to ensure correct pagination for flex layouts
  */
 function flattenPageableItems(items: PageableItem[]): PageableItem[] {
   const result: PageableItem[] = [];
@@ -441,15 +465,14 @@ function flattenPageableItems(items: PageableItem[]): PageableItem[] {
       // Recursively flatten children
       const flatChildren = flattenPageableItems(item.children);
 
-      // Apply container's breakBefore to first child
-      const firstFlatChild = flatChildren[0];
-      if (item.breakBefore && firstFlatChild) {
-        firstFlatChild.breakBefore = true;
+      // Apply container's breakBefore to first child (by Y order, not DOM order)
+      // We'll handle this after sorting
+      if (item.breakBefore && flatChildren.length > 0) {
+        flatChildren[0]!.breakBefore = true;
       }
-      // Apply container's breakAfter to last child
-      const lastFlatChild = flatChildren[flatChildren.length - 1];
-      if (item.breakAfter && lastFlatChild) {
-        lastFlatChild.breakAfter = true;
+      // Apply container's breakAfter to last child (by Y order)
+      if (item.breakAfter && flatChildren.length > 0) {
+        flatChildren[flatChildren.length - 1]!.breakAfter = true;
       }
 
       result.push(...flatChildren);
@@ -457,6 +480,10 @@ function flattenPageableItems(items: PageableItem[]): PageableItem[] {
       result.push(item);
     }
   }
+
+  // Sort by Y position to handle flex rows correctly
+  // Items at the same Y (flex children) will be processed together
+  result.sort((a, b) => a.layout.y - b.layout.y);
 
   return result;
 }
