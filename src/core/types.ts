@@ -13,8 +13,91 @@ import {
   BARCODE_TYPE,
 } from './constants';
 
-// Utility types
+// ==================== UTILITY TYPES ====================
+
 export type ValueOf<T> = T[keyof T];
+
+// ==================== BRANDED TYPES ====================
+
+/**
+ * Branded type utility for creating nominal types
+ * Prevents accidentally mixing up values with the same underlying type
+ */
+type Brand<T, B extends string> = T & { readonly __brand: B };
+
+/**
+ * Dots - Position/size in 1/360 inch units (ESC/P2 base unit)
+ */
+export type Dots = Brand<number, 'dots'>;
+
+/**
+ * Inches - Dimension in inches
+ */
+export type Inches = Brand<number, 'inches'>;
+
+/**
+ * Millimeters - Dimension in millimeters
+ */
+export type Millimeters = Brand<number, 'mm'>;
+
+/**
+ * Columns - Character column position
+ */
+export type Columns = Brand<number, 'columns'>;
+
+/**
+ * Lines - Line position for vertical movement
+ */
+export type Lines = Brand<number, 'lines'>;
+
+/**
+ * CPI value - Characters per inch (10, 12, 15, 17, 20)
+ */
+export type CPIValue = 10 | 12 | 15 | 17 | 20;
+
+// ==================== BRANDED TYPE FACTORIES ====================
+
+/**
+ * Create a Dots value
+ * @param value - Numeric value in dots (1/360 inch)
+ */
+export function dots(value: number): Dots {
+  return value as Dots;
+}
+
+/**
+ * Create an Inches value
+ * @param value - Numeric value in inches
+ */
+export function inches(value: number): Inches {
+  return value as Inches;
+}
+
+/**
+ * Create a Millimeters value
+ * @param value - Numeric value in millimeters
+ */
+export function mm(value: number): Millimeters {
+  return value as Millimeters;
+}
+
+/**
+ * Create a Columns value
+ * @param value - Numeric value in columns
+ */
+export function columns(value: number): Columns {
+  return value as Columns;
+}
+
+/**
+ * Create a Lines value
+ * @param value - Numeric value in lines
+ */
+export function lines(value: number): Lines {
+  return value as Lines;
+}
+
+// ==================== CONSTANT-DERIVED TYPES ====================
 
 // Print quality type
 export type PrintQuality = ValueOf<typeof PRINT_QUALITY>;

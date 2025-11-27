@@ -262,6 +262,15 @@ export const PAPER_SIZE = {
   CONTINUOUS_80: { width: 9.5, height: 11 }, // 80-column continuous
 } as const;
 
+// CUPS Custom Page Size: lpoptions -p EPSON_LQ_2090II -o PageSize=Custom.1069x615
+// 1069x615 points (1 point = 1/72 inch)
+export const CUPS_CUSTOM_1069x615 = {
+  widthPoints: 1069,
+  heightPoints: 615,
+  widthInches: 1069 / 72,  // 14.847 inches
+  heightInches: 615 / 72,  // 8.542 inches
+} as const;
+
 // LQ-2090II Specific Constants
 export const LQ_2090II = {
   MAX_PRINT_WIDTH_INCHES: 13.6, // 136 columns at 10 CPI
@@ -315,4 +324,29 @@ export const BARCODE_TYPE = {
   CODABAR: 8, // NW-7
   INDUSTRIAL_2_OF_5: 9,
   MATRIX_2_OF_5: 10,
+} as const;
+
+// Command parameter limits
+export const LIMITS = {
+  MAX_BYTE: 255,
+  MAX_UINT16: 65535,
+  MAX_PAGE_LINES: 127,
+  MAX_PAGE_INCHES: 22,
+  MAX_HORIZONTAL_TABS: 32,
+  MAX_VERTICAL_TABS: 16,
+  MAX_POINT_SIZE: 32,
+  MIN_POINT_SIZE: 8,
+} as const;
+
+// Motion unit divisors for positioning commands
+export const MOTION_UNITS = {
+  UNIT_60: 60, // 1/60 inch
+  UNIT_180: 180, // 1/180 inch
+  UNIT_360: 360, // 1/360 inch (base unit for ESC/P2)
+} as const;
+
+// Pin configurations for graphics modes
+export const PIN_COUNTS = {
+  STANDARD: 8,
+  HIGH_DENSITY: 24,
 } as const;

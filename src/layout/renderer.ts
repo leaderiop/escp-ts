@@ -7,11 +7,98 @@
  */
 
 import type { LayoutResult } from './layout';
-import type { TextNode, LineNode, ResolvedStyle } from './nodes';
+import type { TextNode, LineNode, ResolvedStyle, TextOrientation, TextOverflow } from './nodes';
 import { CommandBuilder } from '../commands/CommandBuilder';
-import { encodeText } from '../fonts/CharacterSet';
+import { encodeText, getCharacterWidth } from '../fonts/CharacterSet';
 import { INTERNATIONAL_CHARSET, CHAR_TABLE } from '../core/constants';
 import type { InternationalCharset, CharacterTable } from '../core/types';
+
+// ==================== TEXT TRUNCATION ====================
+
+/**
+ * Truncate text to fit within a maximum width based on overflow mode
+ *
+ * @param text - The text content to potentially truncate
+ * @param maxWidth - Maximum width in dots
+ * @param overflow - Overflow mode: 'visible', 'clip', or 'ellipsis'
+ * @param style - Style information for character width calculation
+ * @returns Truncated text string
+ */
+function truncateText(
+  text: string,
+  maxWidth: number,
+  overflow: TextOverflow,
+  style: ResolvedStyle
+): string {
+  // 'visible' mode - no truncation
+  if (overflow === 'visible') {
+    return text;
+  }
+
+  const ellipsis = '...';
+  let currentWidth = 0;
+  let lastFitIndex = 0;
+
+  // Calculate width character by character
+  for (let i = 0; i < text.length; i++) {
+    const charCode = text.charCodeAt(i);
+    const charWidth = getCharacterWidth(
+      charCode,
+      style.cpi,
+      false, // proportional
+      style.condensed,
+      style.doubleWidth
+    );
+
+    if (currentWidth + charWidth > maxWidth) {
+      // Text exceeds max width
+      if (overflow === 'clip') {
+        return text.slice(0, lastFitIndex);
+      }
+
+      // 'ellipsis' mode - need to fit ellipsis
+      // Calculate width of ellipsis
+      let ellipsisWidth = 0;
+      for (const char of ellipsis) {
+        ellipsisWidth += getCharacterWidth(
+          char.charCodeAt(0),
+          style.cpi,
+          false,
+          style.condensed,
+          style.doubleWidth
+        );
+      }
+
+      // Find how many characters fit with ellipsis
+      let widthWithEllipsis = 0;
+      let fitIndexForEllipsis = 0;
+      for (let j = 0; j < text.length; j++) {
+        const cCode = text.charCodeAt(j);
+        const cWidth = getCharacterWidth(
+          cCode,
+          style.cpi,
+          false,
+          style.condensed,
+          style.doubleWidth
+        );
+
+        if (widthWithEllipsis + cWidth + ellipsisWidth > maxWidth) {
+          break;
+        }
+        widthWithEllipsis += cWidth;
+        fitIndexForEllipsis = j + 1;
+      }
+
+      return text.slice(0, fitIndexForEllipsis) + ellipsis;
+    }
+
+    currentWidth += charWidth;
+    lastFitIndex = i + 1;
+  }
+
+  // Text fits entirely
+  return text;
+}
 
 // ==================== RENDER ITEM ====================
 
@@ -39,7 +126,7 @@ export interface RenderItem {
  * Render item data variants
  */
 export type RenderItemData =
-  | { type: 'text'; content: string }
+  | { type: 'text'; content: string; orientation: TextOrientation }
   | { type: 'line'; char: string; length: number };
 
 // ==================== FLATTEN TREE ====================
@@ -62,14 +149,78 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
   switch (node.type) {
     case 'text': {
       const textNode = node as TextNode;
+      const overflow = textNode.overflow ?? 'visible';
+
+      // Determine the constraint width for truncation
+      // Use explicit width from node if it's a number, otherwise use layout result width
+      let constraintWidth = result.width;
+      if (typeof textNode.width === 'number') {
+        constraintWidth = textNode.width;
+      }
+
+      // Apply text truncation
+      // Always truncate if text exceeds constraint width, defaulting to 'clip'
+      // This ensures grid cell contents don't overflow into adjacent columns
+      let content = textNode.content;
+      let textWidth = 0;
+
+      // Calculate actual text width
+      for (const char of content) {
+        textWidth += getCharacterWidth(
+          char.charCodeAt(0),
+          result.style.cpi,
+          false,
+          result.style.condensed,
+          result.style.doubleWidth
+        );
+      }
+
+      // Truncate if text exceeds constraint
+      if (constraintWidth > 0 && textWidth > constraintWidth) {
+        // Use explicit overflow mode, or default to 'clip' for layout constraints
+        const effectiveOverflow = overflow === 'visible' ? 'clip' : overflow;
+        content = truncateText(content, constraintWidth, effectiveOverflow, result.style);
+
+        // Recalculate text width after truncation
+        textWidth = 0;
+        for (const char of content) {
+          textWidth += getCharacterWidth(
+            char.charCodeAt(0),
+            result.style.cpi,
+            false,
+            result.style.condensed,
+            result.style.doubleWidth
+          );
+        }
+      }
+
+      // Calculate X position based on cell alignment (if set)
+      // This is used by grid cells where alignment is deferred to render time
+      let renderX = result.x;
+      if (result.cellAlign && constraintWidth > 0) {
+        switch (result.cellAlign) {
+          case 'center':
+            renderX = result.x + Math.floor((constraintWidth - textWidth) / 2);
+            break;
+          case 'right':
+            renderX = result.x + constraintWidth - textWidth;
+            break;
+          // 'left' or undefined - no adjustment
+        }
+      }
+
       items.push({
         type: 'text',
-        x: result.x,
+        x: renderX,
         y: result.y,
         width: result.width,
         height: result.height,
         style: result.style,
-        data: { type: 'text', content: textNode.content },
+        data: {
+          type: 'text',
+          content,
+          orientation: textNode.orientation ?? 'horizontal',
+        },
       });
       break;
     }
@@ -110,11 +261,11 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
  */
 export function sortRenderItems(items: RenderItem[]): RenderItem[] {
   return [...items].sort((a, b) => {
-    // Primary sort by Y position
+    // Primary sort by Y position (top to bottom)
     if (a.y !== b.y) {
       return a.y - b.y;
     }
-    // Secondary sort by X position
+    // Secondary sort by X position (left to right)
     return a.x - b.x;
   });
 }
@@ -165,10 +316,9 @@ function emit(ctx: RenderContext, command: Uint8Array): void {
  */
 function moveToX(ctx: RenderContext, x: number): void {
   if (Math.abs(ctx.currentX - x) > 1) {
-    // Use ESC $ for absolute horizontal position
-    // ESC $ positions are relative to left margin, so subtract margin offset
-    // Position is in 1/60 inch units
-    const units = Math.round((x - ctx.leftMargin) / 6);
+    // Use ESC $ for absolute horizontal position from page origin
+    // Position is in 1/60 inch units (360 DPI / 6 = 60 units per inch)
+    const units = Math.max(0, Math.round(x / 6));
     emit(ctx, CommandBuilder.absoluteHorizontalPosition(units));
     ctx.currentX = x;
   }
@@ -183,12 +333,15 @@ function moveToY(ctx: RenderContext, y: number): void {
     const deltaY = y - ctx.currentY;
 
     // Use ESC J for advancing in 1/180 inch increments
-    const units180 = Math.round(deltaY / 2); // 360/180 = 2
+    let units180 = Math.round(deltaY / 2); // 360/180 = 2
 
-    if (units180 > 0) {
-      emit(ctx, CommandBuilder.advanceVertical(units180));
-      ctx.currentY = y;
+    // ESC J max is 255, so break into multiple commands if needed
+    while (units180 > 0) {
+      const advance = Math.min(units180, 255);
+      emit(ctx, CommandBuilder.advanceVertical(advance));
+      units180 -= advance;
     }
+    ctx.currentY = y;
   }
   // Note: We don't support moving backwards (up the page)
 }
@@ -256,6 +409,12 @@ function applyStyle(ctx: RenderContext, style: ResolvedStyle): void {
 function renderTextItem(ctx: RenderContext, item: RenderItem): void {
   if (item.data.type !== 'text') return;
 
+  if (item.data.orientation === 'vertical') {
+    renderVerticalText(ctx, item);
+    return;
+  }
+
+  // Horizontal text (default)
   // Position
   moveToY(ctx, item.y);
   moveToX(ctx, item.x);
@@ -268,7 +427,57 @@ function renderTextItem(ctx: RenderContext, item: RenderItem): void {
   emit(ctx, encoded);
 
   // Update X position after printing
-  ctx.currentX = item.x + item.width;
+  // Calculate actual text width to track printer head position accurately
+  // This is critical for grid columns with small/zero gaps
+  let actualTextWidth = 0;
+  for (const char of item.data.content) {
+    actualTextWidth += getCharacterWidth(
+      char.charCodeAt(0),
+      item.style.cpi,
+      false,
+      item.style.condensed,
+      item.style.doubleWidth
+    );
+  }
+  ctx.currentX = item.x + actualTextWidth;
+}
+
+/**
+ * Render vertical text character by character
+ */
+function renderVerticalText(ctx: RenderContext, item: RenderItem): void {
+  if (item.data.type !== 'text') return;
+
+  const content = item.data.content;
+  const charHeight = ctx.lineSpacing;
+  let currentY = item.y;
+
+  // Apply style once
+  applyStyle(ctx, item.style);
+
+  // Calculate character width based on current CPI
+  const charWidth = Math.round(360 / item.style.cpi);
+
+  for (const char of content) {
+    // Position for this character
+    moveToY(ctx, currentY);
+    moveToX(ctx, item.x);
+
+    // Print single character
+    const encoded = encodeText(char, ctx.charset, ctx.charTable);
+    emit(ctx, encoded);
+
+    // Update X position to reflect printer head movement after printing
+    // This ensures the next moveToX call will reposition correctly
+    ctx.currentX = item.x + charWidth;
+
+    // Move down for next character
+    currentY += charHeight;
+  }
+
+  // Update position after rendering
+  ctx.currentY = currentY;
+  ctx.currentX = item.x + charWidth;
 }
 
 /**
@@ -356,17 +565,37 @@ export function renderLayout(
   layoutResult: LayoutResult,
   options: RenderOptions = {}
 ): RenderResult {
-  // Flatten tree to render items
-  const items = flattenTree(layoutResult);
+  return renderPageItems([layoutResult], options);
+}
+
+/**
+ * Render multiple layout results (page items) together in a single context.
+ * This is critical for correct rendering because the render context must be
+ * maintained across all items to properly track printer head position.
+ *
+ * @param layoutResults - Array of layout results from pagination
+ * @param options - Render options
+ * @returns Render result with commands and final position
+ */
+export function renderPageItems(
+  layoutResults: LayoutResult[],
+  options: RenderOptions = {}
+): RenderResult {
+  // Flatten ALL trees to render items
+  const items: RenderItem[] = [];
+  for (const result of layoutResults) {
+    items.push(...flattenTree(result));
+  }
 
   // Sort for optimal print head movement
   const sortedItems = sortRenderItems(items);
 
   // Initialize render context
-  // startX represents the left margin - ESC $ positions are relative to this
+  // currentX/currentY track the actual printer head position (starts at 0,0 after ESC @)
+  // startX/startY represent the desired rendering offset/margin
   const ctx: RenderContext = {
-    currentX: options.startX ?? 0,
-    currentY: options.startY ?? 0,
+    currentX: 0,  // Printer head is at 0 after ESC @
+    currentY: 0,  // Printer head is at 0 after ESC @
     leftMargin: options.startX ?? 0,
     currentStyle: options.initialStyle ?? DEFAULT_RENDER_STYLE,
     charset: options.charset ?? (INTERNATIONAL_CHARSET.USA as InternationalCharset),

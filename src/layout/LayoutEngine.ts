@@ -14,6 +14,8 @@ import {
   BIT_IMAGE_MODE,
   LQ_2090II,
 } from '../core/constants';
+import { concat } from '../core/utils';
+import { assertNonNegative, assertOneOf } from '../core/validation';
 import type {
   PrinterState,
   FontConfig,
@@ -36,25 +38,13 @@ import type {
 } from '../core/types';
 
 // Layout system imports
-import type { LayoutNode, WidthSpec } from './nodes';
+import type { LayoutNode, WidthSpec, DataContext } from './nodes';
 import { measureNode, type MeasureContext } from './measure';
 import { performLayout } from './layout';
-import { renderLayout } from './renderer';
+import { renderPageItems } from './renderer';
+import { paginateLayout, createPageConfig } from './pagination';
 import { StackBuilder, FlexBuilder, GridBuilder, stack, flex, grid } from './builders';
-
-/**
- * Helper to concatenate multiple Uint8Arrays
- */
-function concat(...arrays: Uint8Array[]): Uint8Array {
-  const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
-  const result = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
+import { createDataContext } from './resolver';
 
 /**
  * Default LQ-2090II printer profile
@@ -86,14 +76,15 @@ export const LQ_2090II_PROFILE: PrinterProfile = {
 
 /**
  * Default layout engine options
+ * Paper: CUPS Custom.1069x615 (lpoptions -p EPSON_LQ_2090II -o PageSize=Custom.1069x615)
  */
 export const DEFAULT_ENGINE_OPTIONS: LayoutEngineOptions = {
   profile: LQ_2090II_PROFILE,
   defaultPaper: {
-    widthInches: 8.5,
-    heightInches: 11,
-    margins: { top: 90, bottom: 90, left: 90, right: 90 },
-    linesPerPage: 66,
+    widthInches: 1069 / 72,   // 14.847 inches (1069 points)
+    heightInches: 615 / 72,   // 8.542 inches (615 points)
+    margins: { top: 90, bottom: 90, left: 225, right: 225 },
+    linesPerPage: 51,
   },
   defaultFont: {
     typeface: TYPEFACE.ROMAN as Typeface,
@@ -113,6 +104,7 @@ export class LayoutEngine {
   private output: Uint8Array[] = [];
   private pages: Page[] = [];
   private currentPageElements: LayoutElement[] = [];
+  private dataContext: DataContext | undefined;
 
   constructor(options: Partial<LayoutEngineOptions> = {}) {
     this.options = { ...DEFAULT_ENGINE_OPTIONS, ...options };
@@ -166,8 +158,25 @@ export class LayoutEngine {
 
   /**
    * Set up page with custom configuration
+   * @throws {ValidationError} if margins are negative
    */
   setupPage(paper: Partial<PaperConfig>): this {
+    // Validate margins if provided
+    if (paper.margins) {
+      if (paper.margins.top !== undefined) {
+        assertNonNegative(paper.margins.top, 'margins.top');
+      }
+      if (paper.margins.bottom !== undefined) {
+        assertNonNegative(paper.margins.bottom, 'margins.bottom');
+      }
+      if (paper.margins.left !== undefined) {
+        assertNonNegative(paper.margins.left, 'margins.left');
+      }
+      if (paper.margins.right !== undefined) {
+        assertNonNegative(paper.margins.right, 'margins.right');
+      }
+    }
+
     const state = this.stateManager.getMutableState();
     Object.assign(state.paper, paper);
 
@@ -242,18 +251,10 @@ export class LayoutEngine {
 
   /**
    * Set font by CPI
+   * @throws {ConfigurationError} if CPI is not supported
    */
   setCpi(cpi: number): this {
-    if (!this.options.profile.supportedCpi.includes(cpi)) {
-      if (this.options.strict) {
-        throw new Error(`Unsupported CPI: ${cpi}`);
-      }
-      // Find closest supported CPI
-      const closest = this.options.profile.supportedCpi.reduce((prev, curr) =>
-        Math.abs(curr - cpi) < Math.abs(prev - cpi) ? curr : prev
-      );
-      cpi = closest;
-    }
+    assertOneOf(cpi, this.options.profile.supportedCpi, 'cpi');
 
     switch (cpi) {
       case 10:
@@ -855,11 +856,17 @@ export class LayoutEngine {
   // ==================== LAYOUT SYSTEM ====================
 
   /**
-   * Render a virtual layout tree
+   * Render a virtual layout tree with automatic pagination
    *
-   * This is the main entry point for the new layout system. It takes a
+   * This is the main entry point for the layout system. It takes a
    * layout node (built using stack(), flex(), or grid() builders) and
-   * renders it to ESC/P2 commands.
+   * renders it to ESC/P2 commands with automatic page breaks.
+   *
+   * The pagination system:
+   * - Automatically inserts form feeds when content exceeds page height
+   * - Never splits grid rows (they are atomic units)
+   * - Respects keepTogether, breakBefore, breakAfter hints
+   * - Supports widow/orphan control via minBeforeBreak/minAfterBreak
    *
    * @param node - The layout node to render
    * @returns this for chaining
@@ -894,6 +901,8 @@ export class LayoutEngine {
         condensed: state.font.style.condensed,
         cpi: state.font.cpi,
       },
+      // Only include dataContext if it's defined (for exactOptionalPropertyTypes)
+      ...(this.dataContext && { dataContext: this.dataContext }),
     };
 
     // Phase 1: Measure
@@ -908,21 +917,55 @@ export class LayoutEngine {
       measureCtx.availableHeight
     );
 
-    // Phase 3: Render to commands
-    const renderResult = renderLayout(layoutResult, {
-      startX: state.x,
-      startY: state.y,
-      charset: state.internationalCharset,
-      charTable: state.charTable,
-      lineSpacing: state.lineSpacing,
-      initialStyle: measureCtx.style,
-    });
+    // Phase 3: Pagination
+    const pageConfig = createPageConfig(
+      getPageHeight(state.paper),
+      state.paper.margins.top,
+      state.paper.margins.bottom
+    );
+    const paginated = paginateLayout(layoutResult, pageConfig);
 
-    // Emit generated commands
-    this.emit(renderResult.commands);
+    // Phase 4: Render each page with form feeds between
+    let finalY = state.y;
+
+    for (let pageIdx = 0; pageIdx < paginated.pages.length; pageIdx++) {
+      const page = paginated.pages[pageIdx];
+      if (!page) continue;
+
+      // Emit form feed before subsequent pages
+      if (pageIdx > 0) {
+        this.emit(CommandBuilder.formFeed());
+        this.stateManager.formFeed();
+
+        // Save completed page
+        this.pages.push({
+          number: this.pages.length,
+          elements: this.currentPageElements,
+          size: {
+            width: getPageWidth(state.paper),
+            height: getPageHeight(state.paper),
+          },
+        });
+        this.currentPageElements = [];
+      }
+
+      // Render all items on this page together in a single context
+      // This is critical for maintaining printer head position across items
+      const renderResult = renderPageItems(page.items, {
+        startX: state.paper.margins.left,
+        startY: page.startY,
+        charset: state.internationalCharset,
+        charTable: state.charTable,
+        lineSpacing: state.lineSpacing,
+        initialStyle: measureCtx.style,
+      });
+
+      this.emit(renderResult.commands);
+      finalY = renderResult.finalY;
+    }
 
     // Update position to after the layout
-    this.stateManager.moveTo(state.paper.margins.left, renderResult.finalY);
+    this.stateManager.moveTo(state.paper.margins.left, finalY);
 
     return this;
   }
@@ -981,6 +1024,81 @@ export class LayoutEngine {
    */
   createGrid(columns: WidthSpec[]): GridBuilder {
     return grid(columns);
+  }
+
+  // ==================== DATA CONTEXT ====================
+
+  /**
+   * Set data context for template/conditional nodes
+   *
+   * When a data context is set, the layout system will:
+   * - Resolve TemplateNodes by interpolating {{variable}} placeholders
+   * - Evaluate ConditionalNodes against data conditions
+   * - Process SwitchNodes by matching case values
+   * - Expand EachNodes by iterating over arrays
+   *
+   * @param data - Data object for template interpolation and conditions
+   * @returns this for chaining
+   *
+   * @example
+   * ```typescript
+   * engine
+   *   .setData({
+   *     customer: { name: 'John', isPremium: true },
+   *     items: [
+   *       { name: 'Widget', qty: 5, price: 10 },
+   *       { name: 'Gadget', qty: 2, price: 25 }
+   *     ]
+   *   })
+   *   .render(receiptLayout)
+   *   .clearData();
+   * ```
+   */
+  setData<T = unknown>(data: T): this {
+    const state = this.stateManager.getState();
+    this.dataContext = createDataContext(data, {
+      availableWidth: getPrintableWidth(state.paper),
+      availableHeight: getPageHeight(state.paper) - state.y,
+      remainingWidth: getPrintableWidth(state.paper),
+      remainingHeight: getPageHeight(state.paper) - state.y,
+      pageNumber: this.pages.length,
+    });
+    return this;
+  }
+
+  /**
+   * Clear the data context
+   *
+   * Call this after rendering with data to ensure subsequent renders
+   * don't unexpectedly use stale data.
+   *
+   * @returns this for chaining
+   */
+  clearData(): this {
+    this.dataContext = undefined;
+    return this;
+  }
+
+  /**
+   * Render a layout with data in a single call
+   *
+   * This is a convenience method that combines setData, render, and clearData.
+   * Useful for one-off renders where you don't need to retain the data context.
+   *
+   * @param node - The layout node to render
+   * @param data - Data object for template interpolation and conditions
+   * @returns this for chaining
+   *
+   * @example
+   * ```typescript
+   * engine.renderWithData(receiptLayout, {
+   *   customer: { name: 'John' },
+   *   total: 125.50
+   * });
+   * ```
+   */
+  renderWithData<T = unknown>(node: LayoutNode, data: T): this {
+    return this.setData(data).render(node).clearData();
   }
 
   // ==================== DOCUMENT BUILDING ====================

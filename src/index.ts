@@ -35,6 +35,35 @@
 export * from './core/types';
 export * from './core/constants';
 
+// Error classes
+export {
+  EscpError,
+  ValidationError,
+  EscpRangeError,
+  GraphicsError,
+  EncodingError,
+  ConfigurationError,
+} from './core/errors';
+
+// Validation utilities
+export {
+  assertByte,
+  assertRange,
+  assertUint16,
+  assertValidHex,
+  assertPositiveDimensions,
+  assertNonNegative,
+  assertOneOf,
+} from './core/validation';
+
+// Byte manipulation utilities
+export {
+  bytes,
+  concat,
+  toLowHigh,
+  to32BitLE,
+} from './core/utils';
+
 // Printer state management
 export {
   PrinterStateManager,
@@ -116,21 +145,56 @@ export type {
   WidthSpec,
   HeightSpec,
   PaddingSpec,
+  MarginSpec,
+  PercentageString,
   HAlign,
   VAlign,
   JustifyContent,
   StyleProps,
   ResolvedStyle,
   ResolvedPadding,
+  ResolvedMargin,
+  PageBreakHints,
+  // Advanced layout types
+  SpaceContext,
+  SpaceQuery,
+  ContentCondition,
+  PositionMode,
+  TextOrientation,
+  TextOverflow,
+  FlexWrap,
+  // Template/Component system types
+  DataContext,
+  DataCondition,
+  ContentResolver,
+  TemplateNode,
+  ConditionalNode,
+  SwitchNode,
+  EachNode,
 } from './layout/nodes';
 
 export {
   DEFAULT_STYLE,
   resolvePadding,
+  resolveMargin,
   resolveStyle,
+  isPercentage,
+  parsePercentage,
+  resolvePercentage,
   isContainerNode,
+  isStackNode,
+  isFlexNode,
+  isGridNode,
   isTextNode,
   isSpacerNode,
+  isLineNode,
+  assertNever,
+  // Template/Component system type guards
+  isTemplateNode,
+  isConditionalNode,
+  isSwitchNode,
+  isEachNode,
+  isResolvableNode,
 } from './layout/nodes';
 
 // Layout system - Builders
@@ -144,6 +208,16 @@ export {
   text,
   spacer,
   line,
+  spaceQuery,
+  // Template/Component builders
+  TemplateBuilder,
+  ConditionalBuilder,
+  SwitchBuilder,
+  EachBuilder,
+  template,
+  conditional,
+  switchOn,
+  each,
   type TextOptions,
   type CellOptions,
 } from './layout/builders';
@@ -154,6 +228,7 @@ export {
   DEFAULT_MEASURE_CONTEXT,
   type MeasuredNode,
   type MeasureContext,
+  type FlexLine,
 } from './layout/measure';
 
 // Layout system - Layout phase
@@ -174,6 +249,56 @@ export {
   type RenderResult,
   type RenderOptions,
 } from './layout/renderer';
+
+// Layout system - Pagination
+export {
+  paginateLayout,
+  createPageConfig,
+  type PageConfig,
+  type PageSegment,
+  type PaginatedLayoutResult,
+} from './layout/pagination';
+
+// Layout system - Template Interpolation
+export {
+  interpolate,
+  parseTemplate,
+  resolvePath,
+  defaultFilters,
+  createFilterRegistry,
+  type VariableExpression,
+  type FilterCall,
+  type FilterFunction,
+  type FilterRegistry,
+} from './layout/interpolation';
+
+// Layout system - Conditional Evaluation
+export {
+  evaluateCondition,
+  evaluateDataCondition,
+  matchesCaseValue,
+  // Helper functions for creating conditions
+  eq,
+  neq,
+  gt,
+  gte,
+  lt,
+  lte,
+  isIn,
+  notIn,
+  exists,
+  notExists,
+  empty,
+  notEmpty,
+} from './layout/conditionals';
+
+// Layout system - Node Resolution
+export {
+  resolveNode,
+  createDataContext,
+  createDefaultSpaceContext,
+  type ResolverOptions,
+} from './layout/resolver';
 
 // Virtual renderer
 export {

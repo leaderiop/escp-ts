@@ -15,10 +15,17 @@ import type {
   SpacerNode,
   LineNode,
   WidthSpec,
+  HeightSpec,
   ResolvedPadding,
+  ResolvedMargin,
   ResolvedStyle,
+  SpaceContext,
+  ContentCondition,
+  LayoutNodeBase,
+  DataContext,
 } from './nodes';
-import { resolvePadding, resolveStyle, DEFAULT_STYLE } from './nodes';
+import { resolvePadding, resolveMargin, resolveStyle, DEFAULT_STYLE, isPercentage, parsePercentage, resolvePercentage, isResolvableNode } from './nodes';
+import { resolveNode } from './resolver';
 import { calculateTextWidth, getCharacterWidth } from '../fonts/CharacterSet';
 
 // ==================== MEASURE CONTEXT ====================
@@ -37,6 +44,8 @@ export interface MeasureContext {
   interCharSpace: number;
   /** Current inherited style */
   style: ResolvedStyle;
+  /** Data context for template/conditional resolution */
+  dataContext?: DataContext;
 }
 
 /**
@@ -55,6 +64,20 @@ export const DEFAULT_MEASURE_CONTEXT: MeasureContext = {
 /**
  * Result of measuring a node - contains calculated sizes
  */
+/**
+ * Represents a line of flex items when wrapping
+ */
+export interface FlexLine {
+  /** Start index of children in this line */
+  startIndex: number;
+  /** End index (exclusive) of children in this line */
+  endIndex: number;
+  /** Height of this line (max child height) */
+  height: number;
+  /** Total width of children in this line (including gaps) */
+  width: number;
+}
+
 export interface MeasuredNode {
   /** Original node reference */
   node: LayoutNode;
@@ -62,12 +85,14 @@ export interface MeasuredNode {
   minContentWidth: number;
   /** Minimum content height (without padding) */
   minContentHeight: number;
-  /** Preferred width (natural size) */
+  /** Preferred width (natural size, includes margin) */
   preferredWidth: number;
-  /** Preferred height (natural size) */
+  /** Preferred height (natural size, includes margin) */
   preferredHeight: number;
   /** Resolved padding */
   padding: ResolvedPadding;
+  /** Resolved margin */
+  margin: ResolvedMargin;
   /** Resolved style (with inheritance) */
   style: ResolvedStyle;
   /** Measured children (for container nodes) */
@@ -76,6 +101,12 @@ export interface MeasuredNode {
   rowHeights?: number[];
   /** For grid: calculated column widths */
   columnWidths?: number[];
+  /** For conditional content: whether the condition was met */
+  conditionMet?: boolean;
+  /** For conditional content: measured fallback node */
+  fallbackMeasured?: MeasuredNode;
+  /** For flex wrap: lines of wrapped children */
+  flexLines?: FlexLine[];
 }
 
 // ==================== HELPER FUNCTIONS ====================
@@ -108,14 +139,95 @@ function measureTextWidth(text: string, style: ResolvedStyle, interCharSpace: nu
 /**
  * Resolve a width specification to a concrete value
  */
-function resolveWidthSpec(spec: WidthSpec | undefined, _availableWidth: number): number | 'auto' | 'fill' {
+function resolveWidthSpec(spec: WidthSpec | undefined, availableWidth: number): number | 'auto' | 'fill' {
   if (spec === undefined || spec === 'auto') {
     return 'auto';
   }
   if (spec === 'fill') {
     return 'fill';
   }
+  if (isPercentage(spec)) {
+    const percentage = parsePercentage(spec);
+    return resolvePercentage(percentage, availableWidth);
+  }
   return spec; // number
+}
+
+/**
+ * Resolve a height specification to a concrete value
+ */
+function resolveHeightSpec(spec: HeightSpec | undefined, availableHeight: number): number | 'auto' {
+  if (spec === undefined || spec === 'auto') {
+    return 'auto';
+  }
+  if (isPercentage(spec)) {
+    const percentage = parsePercentage(spec);
+    return resolvePercentage(percentage, availableHeight);
+  }
+  return spec; // number
+}
+
+/**
+ * Apply size constraints to width and height
+ */
+function applyConstraints(
+  width: number,
+  height: number,
+  node: LayoutNodeBase
+): { width: number; height: number } {
+  let constrainedWidth = width;
+  let constrainedHeight = height;
+
+  if (node.minWidth !== undefined) {
+    constrainedWidth = Math.max(constrainedWidth, node.minWidth);
+  }
+  if (node.maxWidth !== undefined) {
+    constrainedWidth = Math.min(constrainedWidth, node.maxWidth);
+  }
+  if (node.minHeight !== undefined) {
+    constrainedHeight = Math.max(constrainedHeight, node.minHeight);
+  }
+  if (node.maxHeight !== undefined) {
+    constrainedHeight = Math.min(constrainedHeight, node.maxHeight);
+  }
+
+  return { width: constrainedWidth, height: constrainedHeight };
+}
+
+/**
+ * Evaluate a content condition against space context
+ */
+function evaluateCondition(condition: ContentCondition, ctx: SpaceContext): boolean {
+  if (typeof condition === 'function') {
+    return condition(ctx);
+  }
+  // Declarative SpaceQuery object
+  if (condition.minWidth !== undefined && ctx.availableWidth < condition.minWidth) {
+    return false;
+  }
+  if (condition.maxWidth !== undefined && ctx.availableWidth > condition.maxWidth) {
+    return false;
+  }
+  if (condition.minHeight !== undefined && ctx.availableHeight < condition.minHeight) {
+    return false;
+  }
+  if (condition.maxHeight !== undefined && ctx.availableHeight > condition.maxHeight) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Create a SpaceContext from MeasureContext
+ */
+function createSpaceContext(ctx: MeasureContext, pageNumber: number = 0): SpaceContext {
+  return {
+    availableWidth: ctx.availableWidth,
+    availableHeight: ctx.availableHeight,
+    remainingWidth: ctx.availableWidth,
+    remainingHeight: ctx.availableHeight,
+    pageNumber,
+  };
 }
 
 // ==================== MEASURE FUNCTIONS ====================
@@ -130,17 +242,47 @@ function measureTextNode(
 ): MeasuredNode {
   const style = resolveStyle(node, parentStyle);
   const padding = resolvePadding(node.padding);
+  const margin = resolveMargin(node.margin);
 
-  const textWidth = measureTextWidth(node.content, style, ctx.interCharSpace);
-  const textHeight = getTextHeight(style, ctx.lineSpacing);
+  let textWidth: number;
+  let textHeight: number;
+
+  if (node.orientation === 'vertical') {
+    // Vertical text: each character stacked vertically
+    const charHeight = getTextHeight(style, ctx.lineSpacing);
+    // Width is the width of the widest character (approximate with 'W')
+    const charWidth = getCharacterWidth(
+      'W'.charCodeAt(0),
+      style.cpi,
+      false,
+      style.condensed,
+      style.doubleWidth
+    );
+    textWidth = charWidth;
+    textHeight = node.content.length * charHeight;
+  } else {
+    // Horizontal text (default)
+    textWidth = measureTextWidth(node.content, style, ctx.interCharSpace);
+    textHeight = getTextHeight(style, ctx.lineSpacing);
+  }
+
+  // Calculate preferred dimensions with padding and margin
+  let preferredWidth = textWidth + padding.left + padding.right + margin.left + margin.right;
+  let preferredHeight = textHeight + padding.top + padding.bottom + margin.top + margin.bottom;
+
+  // Apply constraints
+  const constrained = applyConstraints(preferredWidth, preferredHeight, node);
+  preferredWidth = constrained.width;
+  preferredHeight = constrained.height;
 
   return {
     node,
     minContentWidth: textWidth,
     minContentHeight: textHeight,
-    preferredWidth: textWidth + padding.left + padding.right,
-    preferredHeight: textHeight + padding.top + padding.bottom,
+    preferredWidth,
+    preferredHeight,
     padding,
+    margin,
     style,
     children: [],
   };
@@ -160,6 +302,7 @@ function measureSpacerNode(node: SpacerNode, ctx: MeasureContext): MeasuredNode 
     preferredWidth: width,
     preferredHeight: height,
     padding: { top: 0, right: 0, bottom: 0, left: 0 },
+    margin: { top: 0, right: 0, bottom: 0, left: 0 },
     style: ctx.style,
     children: [],
   };
@@ -175,6 +318,7 @@ function measureLineNode(
 ): MeasuredNode {
   const style = resolveStyle(node, parentStyle);
   const padding = resolvePadding(node.padding);
+  const margin = resolveMargin(node.margin);
 
   const charWidth = getCharacterWidth(
     (node.char ?? '-').charCodeAt(0),
@@ -197,9 +341,10 @@ function measureLineNode(
     node,
     minContentWidth: node.direction === 'horizontal' ? charWidth : charWidth,
     minContentHeight: height,
-    preferredWidth: (node.direction === 'horizontal' ? width : charWidth) + padding.left + padding.right,
-    preferredHeight: height + padding.top + padding.bottom,
+    preferredWidth: (node.direction === 'horizontal' ? width : charWidth) + padding.left + padding.right + margin.left + margin.right,
+    preferredHeight: height + padding.top + padding.bottom + margin.top + margin.bottom,
     padding,
+    margin,
     style,
     children: [],
   };
@@ -215,6 +360,7 @@ function measureStackNode(
 ): MeasuredNode {
   const style = resolveStyle(node, parentStyle);
   const padding = resolvePadding(node.padding);
+  const margin = resolveMargin(node.margin);
   const gap = node.gap ?? 0;
   const direction = node.direction ?? 'column';
 
@@ -222,8 +368,8 @@ function measureStackNode(
   const childCtx: MeasureContext = {
     ...ctx,
     style,
-    availableWidth: ctx.availableWidth - padding.left - padding.right,
-    availableHeight: ctx.availableHeight - padding.top - padding.bottom,
+    availableWidth: ctx.availableWidth - padding.left - padding.right - margin.left - margin.right,
+    availableHeight: ctx.availableHeight - padding.top - padding.bottom - margin.top - margin.bottom,
   };
 
   const measuredChildren = node.children.map(child =>
@@ -256,19 +402,29 @@ function measureStackNode(
 
   // Apply explicit width/height if specified
   const widthSpec = resolveWidthSpec(node.width, ctx.availableWidth);
-  const finalWidth = widthSpec === 'fill'
+  const heightSpec = resolveHeightSpec(node.height, ctx.availableHeight);
+  let preferredWidth = widthSpec === 'fill'
     ? ctx.availableWidth
     : widthSpec === 'auto'
-      ? minContentWidth + padding.left + padding.right
+      ? minContentWidth + padding.left + padding.right + margin.left + margin.right
       : widthSpec;
+  let preferredHeight = heightSpec === 'auto'
+    ? minContentHeight + padding.top + padding.bottom + margin.top + margin.bottom
+    : heightSpec;
+
+  // Apply constraints
+  const constrained = applyConstraints(preferredWidth, preferredHeight, node);
+  preferredWidth = constrained.width;
+  preferredHeight = constrained.height;
 
   return {
     node,
     minContentWidth,
     minContentHeight,
-    preferredWidth: finalWidth,
-    preferredHeight: minContentHeight + padding.top + padding.bottom,
+    preferredWidth,
+    preferredHeight,
     padding,
+    margin,
     style,
     children: measuredChildren,
   };
@@ -284,49 +440,117 @@ function measureFlexNode(
 ): MeasuredNode {
   const style = resolveStyle(node, parentStyle);
   const padding = resolvePadding(node.padding);
+  const margin = resolveMargin(node.margin);
   const gap = node.gap ?? 0;
+  const rowGap = node.rowGap ?? 0;
+  const shouldWrap = node.wrap === 'wrap';
+
+  // Content area width (for wrapping calculations)
+  const contentAreaWidth = ctx.availableWidth - padding.left - padding.right - margin.left - margin.right;
 
   // Measure all children
   const childCtx: MeasureContext = {
     ...ctx,
     style,
-    availableWidth: ctx.availableWidth - padding.left - padding.right,
-    availableHeight: ctx.availableHeight - padding.top - padding.bottom,
+    availableWidth: contentAreaWidth,
+    availableHeight: ctx.availableHeight - padding.top - padding.bottom - margin.top - margin.bottom,
   };
 
   const measuredChildren = node.children.map(child =>
     measureNode(child, childCtx, style)
   );
 
-  // Flex is horizontal: width is sum, height is max
   let minContentWidth = 0;
   let minContentHeight = 0;
+  let flexLines: FlexLine[] | undefined;
 
-  measuredChildren.forEach((child, i) => {
-    minContentWidth += child.preferredWidth;
-    minContentHeight = Math.max(minContentHeight, child.preferredHeight);
-    if (i > 0) {
-      minContentWidth += gap;
+  if (shouldWrap && measuredChildren.length > 0) {
+    // Calculate flex lines for wrapping
+    const lines: FlexLine[] = [];
+    flexLines = lines;
+    let currentLineStart = 0;
+    let currentLineWidth = 0;
+    let currentLineHeight = 0;
+
+    measuredChildren.forEach((child, i) => {
+      const childWidth = child.preferredWidth;
+      const gapBefore = (i > currentLineStart) ? gap : 0;
+
+      // Check if child fits on current line (with gap if not first item on line)
+      if (currentLineWidth + gapBefore + childWidth > contentAreaWidth && i > currentLineStart) {
+        // Save current line
+        lines.push({
+          startIndex: currentLineStart,
+          endIndex: i,
+          height: currentLineHeight,
+          width: currentLineWidth,
+        });
+
+        // Start new line - no gap for first item
+        currentLineStart = i;
+        currentLineWidth = childWidth;
+        currentLineHeight = child.preferredHeight;
+      } else {
+        // Add to current line (with gap if not first item)
+        currentLineWidth += gapBefore + childWidth;
+        currentLineHeight = Math.max(currentLineHeight, child.preferredHeight);
+      }
+    });
+
+    // Save last line
+    if (currentLineStart < measuredChildren.length) {
+      flexLines.push({
+        startIndex: currentLineStart,
+        endIndex: measuredChildren.length,
+        height: currentLineHeight,
+        width: currentLineWidth,
+      });
     }
-  });
 
-  // Apply explicit width if specified
+    // Calculate total size with wrapping
+    minContentWidth = Math.max(...flexLines.map(l => l.width));
+    minContentHeight = flexLines.reduce((sum, line, i) => {
+      return sum + line.height + (i > 0 ? rowGap : 0);
+    }, 0);
+  } else {
+    // No wrap: width is sum, height is max
+    measuredChildren.forEach((child, i) => {
+      minContentWidth += child.preferredWidth;
+      minContentHeight = Math.max(minContentHeight, child.preferredHeight);
+      if (i > 0) {
+        minContentWidth += gap;
+      }
+    });
+  }
+
+  // Apply explicit width/height if specified
   const widthSpec = resolveWidthSpec(node.width, ctx.availableWidth);
-  const finalWidth = widthSpec === 'fill'
+  const heightSpec = resolveHeightSpec(node.height, ctx.availableHeight);
+  let preferredWidth = widthSpec === 'fill'
     ? ctx.availableWidth
     : widthSpec === 'auto'
-      ? minContentWidth + padding.left + padding.right
+      ? minContentWidth + padding.left + padding.right + margin.left + margin.right
       : widthSpec;
+  let preferredHeight = heightSpec === 'auto'
+    ? minContentHeight + padding.top + padding.bottom + margin.top + margin.bottom
+    : heightSpec;
+
+  // Apply constraints
+  const constrained = applyConstraints(preferredWidth, preferredHeight, node);
+  preferredWidth = constrained.width;
+  preferredHeight = constrained.height;
 
   return {
     node,
     minContentWidth,
     minContentHeight,
-    preferredWidth: finalWidth,
-    preferredHeight: minContentHeight + padding.top + padding.bottom,
+    preferredWidth,
+    preferredHeight,
     padding,
+    margin,
     style,
     children: measuredChildren,
+    ...(flexLines && { flexLines }),
   };
 }
 
@@ -340,6 +564,7 @@ function measureGridNode(
 ): MeasuredNode {
   const style = resolveStyle(node, parentStyle);
   const padding = resolvePadding(node.padding);
+  const margin = resolveMargin(node.margin);
   const columnGap = node.columnGap ?? 0;
   const rowGap = node.rowGap ?? 0;
   const numColumns = node.columns.length;
@@ -371,7 +596,7 @@ function measureGridNode(
 
   // Second pass: resolve column widths
   const totalGapWidth = (numColumns - 1) * columnGap;
-  const availableForColumns = ctx.availableWidth - padding.left - padding.right - totalGapWidth;
+  const availableForColumns = ctx.availableWidth - padding.left - padding.right - margin.left - margin.right - totalGapWidth;
 
   const columnWidths = resolveColumnWidths(
     node.columns,
@@ -407,13 +632,23 @@ function measureGridNode(
   // Flatten measured children
   const flatChildren = measuredRows.flat();
 
+  // Calculate preferred dimensions with padding and margin
+  let preferredWidth = totalWidth + padding.left + padding.right + margin.left + margin.right;
+  let preferredHeight = totalHeight + padding.top + padding.bottom + margin.top + margin.bottom;
+
+  // Apply constraints
+  const constrained = applyConstraints(preferredWidth, preferredHeight, node);
+  preferredWidth = constrained.width;
+  preferredHeight = constrained.height;
+
   return {
     node,
     minContentWidth: totalWidth,
     minContentHeight: totalHeight,
-    preferredWidth: totalWidth + padding.left + padding.right,
-    preferredHeight: totalHeight + padding.top + padding.bottom,
+    preferredWidth,
+    preferredHeight,
     padding,
+    margin,
     style,
     children: flatChildren,
     rowHeights,
@@ -432,7 +667,7 @@ function resolveColumnWidths(
   const numColumns = columnSpecs.length;
   const widths: number[] = new Array(numColumns).fill(0);
 
-  // First pass: assign fixed widths and collect auto/fill columns
+  // First pass: assign fixed widths, percentages, and collect auto/fill columns
   let fixedWidth = 0;
   const autoColumns: number[] = [];
   const fillColumns: number[] = [];
@@ -442,6 +677,12 @@ function resolveColumnWidths(
     if (typeof spec === 'number') {
       widths[i] = spec;
       fixedWidth += spec;
+    } else if (isPercentage(spec)) {
+      // Resolve percentage width
+      const percentage = parsePercentage(spec);
+      const width = resolvePercentage(percentage, availableWidth);
+      widths[i] = width;
+      fixedWidth += width;
     } else if (spec === 'auto') {
       autoColumns.push(i);
     } else if (spec === 'fill') {
@@ -482,34 +723,20 @@ function resolveColumnWidths(
  * @param node - The layout node to measure
  * @param ctx - Measure context with available space and settings
  * @param parentStyle - Style inherited from parent
+ * @param pageNumber - Current page number (for conditional content)
  * @returns Measured node with calculated sizes
  */
 export function measureNode(
   node: LayoutNode,
   ctx: MeasureContext = DEFAULT_MEASURE_CONTEXT,
-  parentStyle: ResolvedStyle = DEFAULT_STYLE
+  parentStyle: ResolvedStyle = DEFAULT_STYLE,
+  pageNumber: number = 0
 ): MeasuredNode {
-  switch (node.type) {
-    case 'text':
-      return measureTextNode(node, ctx, parentStyle);
-
-    case 'spacer':
-      return measureSpacerNode(node, ctx);
-
-    case 'line':
-      return measureLineNode(node, ctx, parentStyle);
-
-    case 'stack':
-      return measureStackNode(node, ctx, parentStyle);
-
-    case 'flex':
-      return measureFlexNode(node, ctx, parentStyle);
-
-    case 'grid':
-      return measureGridNode(node, ctx, parentStyle);
-
-    default:
-      // Unknown node type - return empty measurement
+  // Resolve dynamic nodes (template, conditional, switch, each) when data context is available
+  if (ctx.dataContext && isResolvableNode(node)) {
+    const resolved = resolveNode(node, ctx.dataContext);
+    if (!resolved) {
+      // Node resolved to null (e.g., condition not met) - return zero-size measurement
       return {
         node,
         minContentWidth: 0,
@@ -517,8 +744,94 @@ export function measureNode(
         preferredWidth: 0,
         preferredHeight: 0,
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        style: parentStyle,
+        children: [],
+      };
+    }
+    // Continue measuring the resolved node
+    node = resolved;
+  }
+
+  // Check for conditional content
+  const nodeBase = node as LayoutNodeBase;
+  if (nodeBase.when !== undefined) {
+    const spaceCtx = createSpaceContext(ctx, pageNumber);
+    const conditionMet = evaluateCondition(nodeBase.when, spaceCtx);
+
+    if (!conditionMet) {
+      // Condition not met - measure fallback or return zero-size
+      if (nodeBase.fallback) {
+        const fallbackMeasured = measureNode(nodeBase.fallback, ctx, parentStyle, pageNumber);
+        return {
+          ...fallbackMeasured,
+          node, // Keep original node reference
+          conditionMet: false,
+          fallbackMeasured,
+        };
+      }
+      // No fallback - return zero-size measurement
+      return {
+        node,
+        minContentWidth: 0,
+        minContentHeight: 0,
+        preferredWidth: 0,
+        preferredHeight: 0,
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        style: parentStyle,
+        children: [],
+        conditionMet: false,
+      };
+    }
+  }
+
+  let result: MeasuredNode;
+
+  switch (node.type) {
+    case 'text':
+      result = measureTextNode(node, ctx, parentStyle);
+      break;
+
+    case 'spacer':
+      result = measureSpacerNode(node, ctx);
+      break;
+
+    case 'line':
+      result = measureLineNode(node, ctx, parentStyle);
+      break;
+
+    case 'stack':
+      result = measureStackNode(node, ctx, parentStyle);
+      break;
+
+    case 'flex':
+      result = measureFlexNode(node, ctx, parentStyle);
+      break;
+
+    case 'grid':
+      result = measureGridNode(node, ctx, parentStyle);
+      break;
+
+    default:
+      // Unknown node type - return empty measurement
+      result = {
+        node,
+        minContentWidth: 0,
+        minContentHeight: 0,
+        preferredWidth: 0,
+        preferredHeight: 0,
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
         style: parentStyle,
         children: [],
       };
   }
+
+  // Mark condition as met if we got here
+  if (nodeBase.when !== undefined) {
+    result.conditionMet = true;
+  }
+
+  return result;
 }
