@@ -125,7 +125,7 @@ function parseFilter(filterExpr: string): FilterCall {
   let inQuote: string | null = null;
 
   for (let i = 0; i < argsStr.length; i++) {
-    const char = argsStr[i]!;
+    const char = argsStr.charAt(i);
 
     if (inQuote) {
       if (char === inQuote) {

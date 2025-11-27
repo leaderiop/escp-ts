@@ -421,7 +421,7 @@ function layoutFlexNode(
       });
 
       // Move to next line
-      currentY += line.height + (lineIndex < measured.flexLines!.length - 1 ? rowGap : 0);
+      currentY += line.height + (lineIndex < (measured.flexLines?.length ?? 0) - 1 ? rowGap : 0);
     });
   } else {
     // No wrapping: single row layout

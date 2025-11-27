@@ -388,8 +388,7 @@ function paginateItems(
   // Group items by Y position to handle flex rows correctly
   const yGroups = groupByY(items);
 
-  for (let groupIndex = 0; groupIndex < yGroups.length; groupIndex++) {
-    const group = yGroups[groupIndex]!;
+  for (const [groupIndex, group] of yGroups.entries()) {
     // Handle explicit breakBefore for any item in the group
     const hasBreakBefore = group.items.some(item => item.breakBefore);
     if (hasBreakBefore && currentPage.items.length > 0) {
@@ -436,8 +435,8 @@ function paginateItems(
     // Calculate gap to next group by looking at original Y positions
     // The gap is embedded in the Y position differences from the layout phase
     let gapAfterGroup = 0;
-    if (groupIndex + 1 < yGroups.length) {
-      const nextGroup = yGroups[groupIndex + 1]!;
+    const nextGroup = yGroups[groupIndex + 1];
+    if (nextGroup) {
       // Gap = nextGroup.y - (currentGroup.y + currentGroup.height)
       gapAfterGroup = Math.max(0, nextGroup.y - (group.y + group.maxHeight));
     }
@@ -482,17 +481,20 @@ function distributeAbsoluteItems(
       pages.push(createPageSegment(pages.length, pageConfig.topMargin));
     }
 
+    const page = pages[pageIndex];
+    if (!page) continue; // Safety check - shouldn't happen after while loop
+
     // Calculate page-relative Y position
     const pageRelativeY = effectiveY - (pageIndex * pageConfig.pageHeight);
 
     // Adjust item to page-relative position
     const adjustedItem = adjustLayoutY(item, pageRelativeY - item.y);
-    pages[pageIndex]!.items.push(adjustedItem);
+    page.items.push(adjustedItem);
 
     // Update page endY if needed
     const itemEndY = pageRelativeY + item.height;
-    if (pages[pageIndex]!.endY < itemEndY) {
-      pages[pageIndex]!.endY = itemEndY;
+    if (page.endY < itemEndY) {
+      page.endY = itemEndY;
     }
   }
 }

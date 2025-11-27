@@ -466,7 +466,8 @@ function measureFlexNode(
 
   if (shouldWrap && measuredChildren.length > 0) {
     // Calculate flex lines for wrapping
-    flexLines = [];
+    const lines: FlexLine[] = [];
+    flexLines = lines;
     let currentLineStart = 0;
     let currentLineWidth = 0;
     let currentLineHeight = 0;
@@ -478,7 +479,7 @@ function measureFlexNode(
       // Check if child fits on current line (with gap if not first item on line)
       if (currentLineWidth + gapBefore + childWidth > contentAreaWidth && i > currentLineStart) {
         // Save current line
-        flexLines!.push({
+        lines.push({
           startIndex: currentLineStart,
           endIndex: i,
           height: currentLineHeight,

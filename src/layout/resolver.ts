@@ -346,7 +346,6 @@ function resolveTextNode(
   }
 
   // Destructure to remove contentResolver and return resolved node
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { contentResolver: _, ...rest } = node;
   return {
     ...rest,
