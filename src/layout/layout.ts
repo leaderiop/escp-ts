@@ -14,6 +14,7 @@ import type {
   HAlign,
   VAlign,
   JustifyContent,
+  LayoutNodeBase,
 } from './nodes';
 import type { MeasuredNode } from './measure';
 
@@ -177,15 +178,25 @@ function layoutTextNode(
 ): LayoutResult {
   const node = measured.node;
   const align = 'align' in node ? (node as { align?: HAlign }).align : undefined;
+  const margin = measured.margin;
 
-  const xOffset = alignHorizontal(align, measured.preferredWidth, ctx.width);
+  // Content width excludes margins
+  const contentWidth = measured.preferredWidth - margin.left - margin.right;
+
+  let xOffset: number;
+  if (margin.autoHorizontal) {
+    // Auto horizontal margins - center the element
+    xOffset = Math.floor((ctx.width - contentWidth) / 2);
+  } else {
+    xOffset = margin.left + alignHorizontal(align, contentWidth, ctx.width - margin.left - margin.right);
+  }
 
   return {
     node: measured.node,
     x: ctx.x + xOffset,
-    y: ctx.y,
-    width: measured.preferredWidth,
-    height: measured.preferredHeight,
+    y: ctx.y + margin.top,
+    width: contentWidth,
+    height: measured.preferredHeight - margin.top - margin.bottom,
     children: [],
     style: measured.style,
   };
@@ -216,12 +227,14 @@ function layoutLineNode(
   measured: MeasuredNode,
   ctx: LayoutContext
 ): LayoutResult {
+  const margin = measured.margin;
+
   return {
     node: measured.node,
-    x: ctx.x,
-    y: ctx.y,
-    width: ctx.width, // Lines fill available width
-    height: measured.preferredHeight,
+    x: ctx.x + margin.left,
+    y: ctx.y + margin.top,
+    width: ctx.width - margin.left - margin.right, // Lines fill available width minus margins
+    height: measured.preferredHeight - margin.top - margin.bottom,
     children: [],
     style: measured.style,
   };
@@ -238,12 +251,13 @@ function layoutStackNode(
   const direction = node.direction ?? 'column';
   const gap = node.gap ?? 0;
   const padding = measured.padding;
+  const margin = measured.margin;
 
-  // Content area inside padding
-  const contentX = ctx.x + padding.left;
-  const contentY = ctx.y + padding.top;
-  const contentWidth = ctx.width - padding.left - padding.right;
-  const contentHeight = ctx.height - padding.top - padding.bottom;
+  // Content area inside margin and padding
+  const contentX = ctx.x + margin.left + padding.left;
+  const contentY = ctx.y + margin.top + padding.top;
+  const contentWidth = ctx.width - margin.left - margin.right - padding.left - padding.right;
+  const contentHeight = ctx.height - margin.top - margin.bottom - padding.top - padding.bottom;
 
   const childResults: LayoutResult[] = [];
 
@@ -252,8 +266,14 @@ function layoutStackNode(
     let currentY = contentY;
 
     for (const childMeasured of measured.children) {
-      // Calculate X offset based on alignment
-      const xOffset = alignHorizontal(node.align, childMeasured.preferredWidth, contentWidth);
+      // Calculate X offset based on alignment or auto margins
+      let xOffset: number;
+      if (childMeasured.margin.autoHorizontal) {
+        // Auto horizontal margins - center the child
+        xOffset = Math.floor((contentWidth - childMeasured.preferredWidth) / 2);
+      } else {
+        xOffset = alignHorizontal(node.align, childMeasured.preferredWidth, contentWidth);
+      }
 
       const childResult = layoutNode(childMeasured, {
         x: contentX + xOffset,
@@ -263,7 +283,7 @@ function layoutStackNode(
       });
 
       childResults.push(childResult);
-      currentY += childResult.height + gap;
+      currentY += childResult.height + childMeasured.margin.top + childMeasured.margin.bottom + gap;
     }
   } else {
     // Horizontal stack (row)
@@ -281,16 +301,16 @@ function layoutStackNode(
       });
 
       childResults.push(childResult);
-      currentX += childResult.width + gap;
+      currentX += childResult.width + childMeasured.margin.left + childMeasured.margin.right + gap;
     }
   }
 
   return {
     node: measured.node,
-    x: ctx.x,
-    y: ctx.y,
-    width: ctx.width,
-    height: measured.preferredHeight,
+    x: ctx.x + margin.left,
+    y: ctx.y + margin.top,
+    width: measured.preferredWidth - margin.left - margin.right,
+    height: measured.preferredHeight - margin.top - margin.bottom,
     children: childResults,
     style: measured.style,
   };
@@ -305,50 +325,90 @@ function layoutFlexNode(
 ): LayoutResult {
   const node = measured.node as FlexNode;
   const gap = node.gap ?? 0;
+  const rowGap = node.rowGap ?? 0;
   const justify = node.justify;
   const alignItems = node.alignItems;
   const padding = measured.padding;
+  const margin = measured.margin;
 
-  // Content area inside padding
-  const contentX = ctx.x + padding.left;
-  const contentY = ctx.y + padding.top;
-  const contentWidth = ctx.width - padding.left - padding.right;
-  const contentHeight = measured.preferredHeight - padding.top - padding.bottom;
-
-  // Get child widths for justify calculation
-  const childWidths = measured.children.map(c => c.preferredWidth);
-
-  // Calculate X positions based on justify
-  const xPositions = calculateJustifyPositions(
-    justify,
-    childWidths,
-    contentWidth,
-    gap
-  );
+  // Content area inside margin and padding
+  const contentX = ctx.x + margin.left + padding.left;
+  const contentY = ctx.y + margin.top + padding.top;
+  const contentWidth = ctx.width - margin.left - margin.right - padding.left - padding.right;
+  const contentHeight = measured.preferredHeight - margin.top - margin.bottom - padding.top - padding.bottom;
 
   const childResults: LayoutResult[] = [];
 
-  measured.children.forEach((childMeasured, i) => {
-    // Calculate Y offset based on alignItems
-    const yOffset = alignVertical(alignItems, childMeasured.preferredHeight, contentHeight);
-    const xPosition = xPositions[i] ?? 0;
+  if (measured.flexLines && measured.flexLines.length > 0) {
+    // Wrapping mode: layout line by line
+    let currentY = contentY;
 
-    const childResult = layoutNode(childMeasured, {
-      x: contentX + xPosition,
-      y: contentY + yOffset,
-      width: childMeasured.preferredWidth,
-      height: contentHeight,
+    measured.flexLines.forEach((line, lineIndex) => {
+      // Get children for this line
+      const lineChildren = measured.children.slice(line.startIndex, line.endIndex);
+      const lineChildWidths = lineChildren.map(c => c.preferredWidth);
+
+      // Calculate X positions for this line
+      const xPositions = calculateJustifyPositions(
+        justify,
+        lineChildWidths,
+        contentWidth,
+        gap
+      );
+
+      // Layout each child in the line
+      lineChildren.forEach((childMeasured, i) => {
+        // Calculate Y offset based on alignItems within the line height
+        const yOffset = alignVertical(alignItems, childMeasured.preferredHeight, line.height);
+        const xPosition = xPositions[i] ?? 0;
+
+        const childResult = layoutNode(childMeasured, {
+          x: contentX + xPosition,
+          y: currentY + yOffset,
+          width: childMeasured.preferredWidth,
+          height: line.height,
+        });
+
+        childResults.push(childResult);
+      });
+
+      // Move to next line
+      currentY += line.height + (lineIndex < measured.flexLines!.length - 1 ? rowGap : 0);
     });
+  } else {
+    // No wrapping: single row layout
+    const childWidths = measured.children.map(c => c.preferredWidth);
 
-    childResults.push(childResult);
-  });
+    // Calculate X positions based on justify
+    const xPositions = calculateJustifyPositions(
+      justify,
+      childWidths,
+      contentWidth,
+      gap
+    );
+
+    measured.children.forEach((childMeasured, i) => {
+      // Calculate Y offset based on alignItems
+      const yOffset = alignVertical(alignItems, childMeasured.preferredHeight, contentHeight);
+      const xPosition = xPositions[i] ?? 0;
+
+      const childResult = layoutNode(childMeasured, {
+        x: contentX + xPosition,
+        y: contentY + yOffset,
+        width: childMeasured.preferredWidth,
+        height: contentHeight,
+      });
+
+      childResults.push(childResult);
+    });
+  }
 
   return {
     node: measured.node,
-    x: ctx.x,
-    y: ctx.y,
-    width: ctx.width,
-    height: measured.preferredHeight,
+    x: ctx.x + margin.left,
+    y: ctx.y + margin.top,
+    width: measured.preferredWidth - margin.left - margin.right,
+    height: measured.preferredHeight - margin.top - margin.bottom,
     children: childResults,
     style: measured.style,
   };
@@ -365,12 +425,13 @@ function layoutGridNode(
   const columnGap = node.columnGap ?? 0;
   const rowGap = node.rowGap ?? 0;
   const padding = measured.padding;
+  const margin = measured.margin;
   const columnWidths = measured.columnWidths ?? [];
   const rowHeights = measured.rowHeights ?? [];
 
-  // Content area inside padding
-  const contentX = ctx.x + padding.left;
-  const contentY = ctx.y + padding.top;
+  // Content area inside margin and padding
+  const contentX = ctx.x + margin.left + padding.left;
+  const contentY = ctx.y + margin.top + padding.top;
 
   // Calculate column X positions
   const columnPositions: number[] = [];
@@ -426,12 +487,63 @@ function layoutGridNode(
 
   return {
     node: measured.node,
-    x: ctx.x,
-    y: ctx.y,
-    width: measured.preferredWidth,
-    height: measured.preferredHeight,
+    x: ctx.x + margin.left,
+    y: ctx.y + margin.top,
+    width: measured.preferredWidth - margin.left - margin.right,
+    height: measured.preferredHeight - margin.top - margin.bottom,
     children: childResults,
     style: measured.style,
+  };
+}
+
+// ==================== POSITIONING HELPERS ====================
+
+/**
+ * Check if a node uses absolute positioning
+ */
+function isAbsolutelyPositioned(node: LayoutNode): boolean {
+  const nodeBase = node as LayoutNodeBase;
+  return nodeBase.position === 'absolute';
+}
+
+/**
+ * Check if a node uses relative positioning
+ */
+function isRelativelyPositioned(node: LayoutNode): boolean {
+  const nodeBase = node as LayoutNodeBase;
+  return nodeBase.position === 'relative';
+}
+
+/**
+ * Get absolute position overrides from node
+ */
+function getAbsolutePosition(node: LayoutNode, ctx: LayoutContext): { x: number; y: number } {
+  const nodeBase = node as LayoutNodeBase;
+  return {
+    x: nodeBase.posX ?? ctx.x,
+    y: nodeBase.posY ?? ctx.y,
+  };
+}
+
+/**
+ * Get relative position offsets from node
+ */
+function getRelativeOffset(node: LayoutNode): { x: number; y: number } {
+  const nodeBase = node as LayoutNodeBase;
+  return {
+    x: nodeBase.offsetX ?? 0,
+    y: nodeBase.offsetY ?? 0,
+  };
+}
+
+/**
+ * Apply relative offset to a layout result
+ */
+function applyRelativeOffset(result: LayoutResult, offset: { x: number; y: number }): LayoutResult {
+  return {
+    ...result,
+    x: result.x + offset.x,
+    y: result.y + offset.y,
   };
 }
 
@@ -448,37 +560,82 @@ export function layoutNode(
   measured: MeasuredNode,
   ctx: LayoutContext
 ): LayoutResult {
+  // Check for absolute positioning
+  let effectiveCtx = ctx;
+  if (isAbsolutelyPositioned(measured.node)) {
+    const absPos = getAbsolutePosition(measured.node, ctx);
+    effectiveCtx = {
+      ...ctx,
+      x: absPos.x,
+      y: absPos.y,
+    };
+  }
+
+  // Check for conditional content - if condition not met, use fallback
+  if (measured.conditionMet === false && measured.fallbackMeasured) {
+    return layoutNode(measured.fallbackMeasured, effectiveCtx);
+  }
+
+  // If condition not met and no fallback, return zero-size result
+  if (measured.conditionMet === false) {
+    return {
+      node: measured.node,
+      x: effectiveCtx.x,
+      y: effectiveCtx.y,
+      width: 0,
+      height: 0,
+      children: [],
+      style: measured.style,
+    };
+  }
+
+  let result: LayoutResult;
+
   switch (measured.node.type) {
     case 'text':
-      return layoutTextNode(measured, ctx);
+      result = layoutTextNode(measured, effectiveCtx);
+      break;
 
     case 'spacer':
-      return layoutSpacerNode(measured, ctx);
+      result = layoutSpacerNode(measured, effectiveCtx);
+      break;
 
     case 'line':
-      return layoutLineNode(measured, ctx);
+      result = layoutLineNode(measured, effectiveCtx);
+      break;
 
     case 'stack':
-      return layoutStackNode(measured, ctx);
+      result = layoutStackNode(measured, effectiveCtx);
+      break;
 
     case 'flex':
-      return layoutFlexNode(measured, ctx);
+      result = layoutFlexNode(measured, effectiveCtx);
+      break;
 
     case 'grid':
-      return layoutGridNode(measured, ctx);
+      result = layoutGridNode(measured, effectiveCtx);
+      break;
 
     default:
       // Unknown node - return basic result
-      return {
+      result = {
         node: measured.node,
-        x: ctx.x,
-        y: ctx.y,
+        x: effectiveCtx.x,
+        y: effectiveCtx.y,
         width: measured.preferredWidth,
         height: measured.preferredHeight,
         children: [],
         style: measured.style,
       };
   }
+
+  // Apply relative positioning offset after normal layout
+  if (isRelativelyPositioned(measured.node)) {
+    const offset = getRelativeOffset(measured.node);
+    result = applyRelativeOffset(result, offset);
+  }
+
+  return result;
 }
 
 /**

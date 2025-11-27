@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  isPercentage,
+  parsePercentage,
+  resolvePercentage,
+} from './nodes';
+import {
   isContainerNode,
   isTextNode,
   isSpacerNode,
@@ -184,6 +189,50 @@ describe('nodes', () => {
       expect(DEFAULT_STYLE.doubleHeight).toBe(false);
       expect(DEFAULT_STYLE.condensed).toBe(false);
       expect(DEFAULT_STYLE.cpi).toBe(10);
+    });
+  });
+
+  // ==================== PERCENTAGE HELPERS ====================
+
+  describe('isPercentage', () => {
+    it('returns true for valid percentage strings', () => {
+      expect(isPercentage('50%')).toBe(true);
+      expect(isPercentage('100%')).toBe(true);
+      expect(isPercentage('0%')).toBe(true);
+      expect(isPercentage('33.33%')).toBe(true);
+    });
+
+    it('returns false for non-percentage values', () => {
+      expect(isPercentage('auto')).toBe(false);
+      expect(isPercentage('fill')).toBe(false);
+      expect(isPercentage(100)).toBe(false);
+      expect(isPercentage('100')).toBe(false);
+      expect(isPercentage('%50')).toBe(false);
+      expect(isPercentage(null)).toBe(false);
+      expect(isPercentage(undefined)).toBe(false);
+    });
+  });
+
+  describe('parsePercentage', () => {
+    it('extracts numeric value from percentage string', () => {
+      expect(parsePercentage('50%')).toBe(50);
+      expect(parsePercentage('100%')).toBe(100);
+      expect(parsePercentage('0%')).toBe(0);
+      expect(parsePercentage('33.33%')).toBe(33.33);
+    });
+  });
+
+  describe('resolvePercentage', () => {
+    it('calculates percentage of available size', () => {
+      expect(resolvePercentage(50, 1000)).toBe(500);
+      expect(resolvePercentage(100, 1000)).toBe(1000);
+      expect(resolvePercentage(25, 800)).toBe(200);
+      expect(resolvePercentage(33.33, 300)).toBe(99); // floor(99.99)
+    });
+
+    it('floors the result', () => {
+      expect(resolvePercentage(50, 101)).toBe(50); // floor(50.5)
+      expect(resolvePercentage(33, 100)).toBe(33);
     });
   });
 });

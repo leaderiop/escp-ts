@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { layoutNode, performLayout, type LayoutContext } from './layout';
 import { measureNode, DEFAULT_MEASURE_CONTEXT } from './measure';
-import { stack, flex, grid, text, spacer, line } from './builders';
+import { stack, flex, grid, text, spacer, line, spaceQuery } from './builders';
 import { DEFAULT_STYLE } from './nodes';
 
 describe('layout', () => {
@@ -62,6 +62,17 @@ describe('layout', () => {
 
       const expectedX = 500 - measured.preferredWidth;
       expect(result.x).toBe(expectedX);
+    });
+
+    it('applies margin to text position', () => {
+      const node = text('Hi');
+      node.margin = { top: 10, right: 20, bottom: 30, left: 40 };
+      const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 500, height: 100 });
+
+      // Position should be offset by margin
+      expect(result.x).toBe(40); // left margin
+      expect(result.y).toBe(10); // top margin
     });
   });
 
@@ -367,6 +378,15 @@ describe('layout', () => {
 
       expect(result.x).toBe(100);
       expect(result.y).toBe(200);
+      // Width is the measured preferredWidth (content-based for auto width)
+      expect(result.width).toBe(measured.preferredWidth);
+    });
+
+    it('fills available width when stack has fill width', () => {
+      const node = stack().width('fill').text('Test').build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 500 }, DEFAULT_STYLE);
+      const result = performLayout(measured, 0, 0, 500, 300);
+
       expect(result.width).toBe(500);
     });
 
@@ -376,6 +396,361 @@ describe('layout', () => {
       const result = performLayout(measured, 0, 0, 800, 600);
 
       expect(result.width).toBe(800);
+    });
+  });
+
+  // ==================== ABSOLUTE POSITIONING ====================
+
+  describe('absolute positioning', () => {
+    it('positions node at explicit X,Y coordinates', () => {
+      const node = stack()
+        .absolutePosition(100, 200)
+        .text('Absolute')
+        .build();
+      const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 500 });
+
+      expect(result.x).toBe(100);
+      expect(result.y).toBe(200);
+    });
+
+    it('respects posX only (posY defaults to context)', () => {
+      const node = stack().text('Test').build();
+      node.position = 'absolute';
+      node.posX = 150;
+      const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 50, y: 75, width: 1000, height: 500 });
+
+      expect(result.x).toBe(150); // Uses posX
+      expect(result.y).toBe(75); // Falls back to context y
+    });
+
+    it('respects posY only (posX defaults to context)', () => {
+      const node = stack().text('Test').build();
+      node.position = 'absolute';
+      node.posY = 250;
+      const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 50, y: 75, width: 1000, height: 500 });
+
+      expect(result.x).toBe(50); // Falls back to context x
+      expect(result.y).toBe(250); // Uses posY
+    });
+
+    it('absolute child does not affect sibling positioning', () => {
+      const node = stack()
+        .text('Normal 1')
+        .add(stack().absolutePosition(500, 500).text('Absolute'))
+        .text('Normal 2')
+        .build();
+      const result = measureAndLayout(node);
+
+      // Normal children should flow sequentially
+      const normal1Y = result.children[0]?.y ?? 0;
+      const normal2Y = result.children[2]?.y ?? 0;
+
+      // Normal 2 should be after Normal 1 (not affected by absolute sibling)
+      expect(normal2Y).toBeGreaterThan(normal1Y);
+    });
+  });
+
+  // ==================== CONDITIONAL CONTENT ====================
+
+  describe('conditional content', () => {
+    it('shows node when callback condition returns true', () => {
+      const node = stack()
+        .when((ctx) => ctx.availableWidth > 500)
+        .text('Visible')
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 500 });
+
+      // Node should have content when condition is true
+      expect(result.children.length).toBeGreaterThan(0);
+    });
+
+    it('hides node when callback condition returns false', () => {
+      const node = stack()
+        .when((ctx) => ctx.availableWidth > 2000)
+        .text('Should not show')
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+
+      // When condition is false, the measurement should indicate no content
+      expect(measured.conditionMet).toBe(false);
+    });
+
+    it('shows node when SpaceQuery minWidth is satisfied', () => {
+      const node = stack()
+        .when(spaceQuery({ minWidth: 500 }))
+        .text('Visible')
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+
+      expect(measured.conditionMet).toBe(true);
+    });
+
+    it('hides node when SpaceQuery minWidth not satisfied', () => {
+      const node = stack()
+        .when(spaceQuery({ minWidth: 2000 }))
+        .text('Hidden')
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+
+      expect(measured.conditionMet).toBe(false);
+    });
+
+    it('uses fallback when condition is false', () => {
+      const fallbackNode = text('Fallback shown');
+      const node = stack()
+        .when(spaceQuery({ minWidth: 5000 }))
+        .fallback(fallbackNode)
+        .text('Main content')
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+
+      expect(measured.conditionMet).toBe(false);
+      expect(measured.fallbackMeasured).toBeDefined();
+    });
+  });
+
+  // ==================== FLEX ALIGNITEMS VARIATIONS ====================
+
+  describe('flex alignItems variations', () => {
+    it('applies alignItems top (default)', () => {
+      const node = flex()
+        .height(200)
+        .alignItems('top')
+        .text('Short')
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 200 });
+
+      // Child should be at the top (y offset should be 0 or near 0 within padding)
+      expect(result.children[0]?.y).toBeLessThanOrEqual(10);
+    });
+
+    it('applies alignItems bottom', () => {
+      // Create flex with items of different heights
+      const node = flex()
+        .alignItems('bottom')
+        .text('Short') // 60px height (1 line)
+        .add(stack().text('Line 1').text('Line 2').build()) // 120px height (2 lines)
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 500 });
+
+      // The shorter text should be aligned to the bottom of the row (same bottom edge as taller sibling)
+      const child0Bottom = (result.children[0]?.y ?? 0) + (result.children[0]?.height ?? 0);
+      const child1Bottom = (result.children[1]?.y ?? 0) + (result.children[1]?.height ?? 0);
+
+      // Both children should have the same bottom edge when bottom-aligned
+      expect(child0Bottom).toBeCloseTo(child1Bottom, 0);
+    });
+  });
+
+  // ==================== FLEX WRAP ====================
+
+  describe('flex wrap', () => {
+    it('keeps items on single line without wrap', () => {
+      const node = flex()
+        .text('Item 1')
+        .text('Item 2')
+        .text('Item 3')
+        .build();
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 500 });
+
+      // All items should be on same Y
+      expect(result.children.length).toBe(3);
+      expect(result.children[0]?.y).toBe(result.children[1]?.y);
+      expect(result.children[1]?.y).toBe(result.children[2]?.y);
+    });
+
+    it('wraps items to multiple lines when needed', () => {
+      // Create a flex with wrapping enabled and items that don't fit in one row
+      const node = flex()
+        .wrap('wrap')
+        .add(stack().width(300).text('Item 1'))
+        .add(stack().width(300).text('Item 2'))
+        .add(stack().width(300).text('Item 3'))
+        .add(stack().width(300).text('Item 4'))
+        .build();
+
+      // Available width of 500 means only 1 item per line (300 each)
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 500 }, DEFAULT_STYLE);
+
+      // Should have multiple flexLines
+      expect(measured.flexLines).toBeDefined();
+      expect(measured.flexLines!.length).toBeGreaterThan(1);
+
+      const result = layoutNode(measured, { x: 0, y: 0, width: 500, height: 1000 });
+
+      // Items should be on different lines (different Y positions)
+      expect(result.children[0]?.y).toBeLessThan(result.children[1]?.y ?? 0);
+    });
+
+    it('applies rowGap between wrapped lines', () => {
+      const node = flex()
+        .wrap('wrap')
+        .rowGap(20)
+        .add(stack().width(300).text('Item 1'))
+        .add(stack().width(300).text('Item 2'))
+        .build();
+
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 500 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 500, height: 1000 });
+
+      // Second item should be on second line with gap
+      const firstItemBottom = (result.children[0]?.y ?? 0) + (result.children[0]?.height ?? 0);
+      const secondItemTop = result.children[1]?.y ?? 0;
+
+      // Gap between first item bottom and second item top should be rowGap
+      expect(secondItemTop - firstItemBottom).toBeGreaterThanOrEqual(20);
+    });
+
+    it('fits multiple items per line when space allows', () => {
+      const node = flex()
+        .wrap('wrap')
+        .gap(10)
+        .add(stack().width(200).text('Item 1'))
+        .add(stack().width(200).text('Item 2'))
+        .add(stack().width(200).text('Item 3'))
+        .build();
+
+      // Available width of 500 should fit 2 items (200 + 10 + 200 = 410)
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 500 }, DEFAULT_STYLE);
+
+      expect(measured.flexLines).toBeDefined();
+      expect(measured.flexLines!.length).toBe(2); // 2 items on first line, 1 on second
+
+      const result = layoutNode(measured, { x: 0, y: 0, width: 500, height: 1000 });
+
+      // First two items should be on same line
+      expect(result.children[0]?.y).toBe(result.children[1]?.y);
+      // Third item should be on next line
+      expect(result.children[2]?.y).toBeGreaterThan(result.children[0]?.y ?? 0);
+    });
+  });
+
+  // ==================== RELATIVE POSITIONING ====================
+
+  describe('relative positioning', () => {
+    it('offsets node from normal position', () => {
+      const node = stack()
+        .relativePosition(50, 30)
+        .text('Offset')
+        .build();
+      const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 100, y: 100, width: 1000, height: 500 });
+
+      // Position should be normal position plus offset
+      expect(result.x).toBe(150); // 100 + 50
+      expect(result.y).toBe(130); // 100 + 30
+    });
+
+    it('applies negative offsets', () => {
+      const node = stack()
+        .relativePosition(-20, -10)
+        .text('Negative offset')
+        .build();
+      const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 100, y: 100, width: 1000, height: 500 });
+
+      expect(result.x).toBe(80); // 100 - 20
+      expect(result.y).toBe(90); // 100 - 10
+    });
+
+    it('does not affect sibling positioning (stays in flow)', () => {
+      const node = stack()
+        .gap(10)
+        .text('Before')
+        .add(stack().relativePosition(100, 0).text('Relative'))
+        .text('After')
+        .build();
+      const result = measureAndLayout(node);
+
+      // The "After" sibling should be positioned as if "Relative" was in normal flow
+      // Without relative offset affecting siblings
+      expect(result.children.length).toBe(3);
+
+      // First child at y=0
+      expect(result.children[0]?.y).toBe(0);
+
+      // Second child (with relative) - its y is offset but the layout space is still taken
+      // The relative child's actual rendered y is offset, but flow is preserved
+      const relativeChild = result.children[1];
+      expect(relativeChild?.x).toBe(100); // Offset applied
+
+      // Third child should be after the second child's flow position (not rendered position)
+      // Second child takes 60px + 10 gap = y should be 70, third should be 70 + 60 = 130
+      const afterY = result.children[2]?.y ?? 0;
+      expect(afterY).toBeGreaterThan(result.children[0]?.y ?? 0);
+    });
+
+    it('works with text nodes using manual positioning', () => {
+      const node = text('Offset Text');
+      node.position = 'relative';
+      node.offsetX = 25;
+      node.offsetY = 15;
+      const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 500, height: 100 });
+
+      expect(result.x).toBe(25);
+      expect(result.y).toBe(15);
+    });
+  });
+
+  // ==================== AUTO MARGINS ====================
+
+  describe('auto margins', () => {
+    it('centers text node with margin auto', () => {
+      const node = text('Centered');
+      node.margin = 'auto';
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // Text should be centered horizontally
+      const expectedX = Math.floor((1000 - result.width) / 2);
+      expect(result.x).toBe(expectedX);
+    });
+
+    it('centers text node with left/right auto margins', () => {
+      const node = text('Centered');
+      node.margin = { left: 'auto', right: 'auto', top: 20, bottom: 10 };
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // Text should be centered horizontally
+      const expectedX = Math.floor((1000 - result.width) / 2);
+      expect(result.x).toBe(expectedX);
+      // Top margin should still be applied
+      expect(result.y).toBe(20);
+    });
+
+    it('centers child in vertical stack with auto margins', () => {
+      const child = stack().width(200).text('Centered Child').build();
+      child.margin = 'auto';
+      const node = stack().add(child).build();
+
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 500 });
+
+      // Child should be centered within the 1000px container
+      const childResult = result.children[0];
+      expect(childResult).toBeDefined();
+      // Child's center should be at container center
+      const childCenter = (childResult?.x ?? 0) + (childResult?.width ?? 0) / 2;
+      expect(childCenter).toBeCloseTo(500, 0);
+    });
+
+    it('does not center when only one side is auto', () => {
+      const node = text('Not Centered');
+      node.margin = { left: 'auto', right: 50 };
+      const measured = measureNode(node, { ...DEFAULT_MEASURE_CONTEXT, availableWidth: 1000 }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // Should not be centered since only left is auto (not both)
+      expect(result.x).toBe(0); // left is 0 when auto but not centering
     });
   });
 

@@ -1,7 +1,9 @@
 /**
- * Example 3: Graphics Printing
+ * Example 03: Graphics Printing
  *
  * Demonstrates image printing with dithering options.
+ *
+ * Run: npx tsx examples/03-graphics.ts
  */
 
 import {
@@ -11,9 +13,7 @@ import {
   type GrayscaleImage,
   type DitheringMethod,
 } from '../src/index';
-import * as fs from 'fs';
-
-const engine = new LayoutEngine();
+import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 // Create a gradient test pattern
 function createGradient(width: number, height: number): GrayscaleImage {
@@ -45,48 +45,57 @@ function createRadialGradient(size: number): GrayscaleImage {
   return { width: size, height: size, data };
 }
 
-// Initialize and print header
-engine.initialize();
-engine.setBold(true).println('Graphics Test Page').setBold(false);
-engine.println('');
+async function main() {
+  printSection('Graphics Printing Demo');
 
-// Print images with different dithering methods
-const ditheringMethods: DitheringMethod[] = [
-  'none',
-  'threshold',
-  'ordered',
-  'floyd-steinberg',
-];
+  const engine = new LayoutEngine({
+    defaultPaper: DEFAULT_PAPER,
+  });
 
-for (const method of ditheringMethods) {
-  engine.println(`Dithering: ${method}`);
-
-  // Create a gradient for this demo
-  const gradient = createGradient(200, 48);
-  engine.printImage(gradient, { dithering: method });
+  // Initialize and print header
+  engine.initialize();
+  engine.setBold(true).println('Graphics Test Page').setBold(false);
   engine.println('');
+
+  // Print images with different dithering methods
+  const ditheringMethods: DitheringMethod[] = [
+    'none',
+    'threshold',
+    'ordered',
+    'floyd-steinberg',
+  ];
+
+  for (const method of ditheringMethods) {
+    engine.println(`Dithering: ${method}`);
+
+    // Create a gradient for this demo
+    const gradient = createGradient(200, 48);
+    engine.printImage(gradient, { dithering: method });
+    engine.println('');
+  }
+
+  // Print built-in test patterns
+  engine.println('Built-in test pattern:');
+  const testPattern = createTestPattern(200, 24);
+  engine.printImage(testPattern, { dithering: 'none' });
+  engine.println('');
+
+  engine.println('Checkerboard pattern:');
+  const checker = createCheckerboard(200, 24, 4);
+  engine.printImage(checker, { dithering: 'none' });
+  engine.println('');
+
+  // Print a radial gradient
+  engine.println('Radial gradient (Floyd-Steinberg):');
+  const radial = createRadialGradient(100);
+  engine.printImage(radial, { dithering: 'floyd-steinberg' });
+  engine.println('');
+
+  engine.formFeed();
+
+  // Get output and show preview
+  const commands = engine.getOutput();
+  await renderPreview(commands, 'Graphics Printing Demo', '03-graphics');
 }
 
-// Print built-in test patterns
-engine.println('Built-in test pattern:');
-const testPattern = createTestPattern(200, 24);
-engine.printImage(testPattern, { dithering: 'none' });
-engine.println('');
-
-engine.println('Checkerboard pattern:');
-const checker = createCheckerboard(200, 24, 4);
-engine.printImage(checker, { dithering: 'none' });
-engine.println('');
-
-// Print a radial gradient
-engine.println('Radial gradient (Floyd-Steinberg):');
-const radial = createRadialGradient(100);
-engine.printImage(radial, { dithering: 'floyd-steinberg' });
-engine.println('');
-
-engine.formFeed();
-
-// Save output
-const output = engine.getOutput();
-fs.writeFileSync('output/graphics.prn', output);
-console.log(`Generated ${output.length} bytes`);
+main().catch(console.error);

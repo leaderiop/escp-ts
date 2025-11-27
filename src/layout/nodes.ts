@@ -9,19 +9,52 @@
 // ==================== WIDTH/HEIGHT SPECIFICATIONS ====================
 
 /**
+ * Percentage string type (e.g., '50%', '100%')
+ */
+export type PercentageString = `${number}%`;
+
+/**
  * Width specification for layout nodes
  * - number: Fixed width in dots (1/360 inch)
  * - 'auto': Size to fit content
  * - 'fill': Take remaining available space
+ * - '50%': Percentage of available width (any number followed by %)
  */
-export type WidthSpec = number | 'auto' | 'fill';
+export type WidthSpec = number | 'auto' | 'fill' | PercentageString;
 
 /**
  * Height specification for layout nodes
  * - number: Fixed height in dots (1/360 inch)
  * - 'auto': Size to fit content
+ * - '50%': Percentage of available height (any number followed by %)
  */
-export type HeightSpec = number | 'auto';
+export type HeightSpec = number | 'auto' | PercentageString;
+
+/**
+ * Check if a value is a percentage string
+ */
+export function isPercentage(value: unknown): value is PercentageString {
+  return typeof value === 'string' && /^\d+(\.\d+)?%$/.test(value);
+}
+
+/**
+ * Parse a percentage string to get the numeric value
+ * @param value - A percentage string like '50%'
+ * @returns The numeric percentage (e.g., 50 for '50%')
+ */
+export function parsePercentage(value: PercentageString): number {
+  return parseFloat(value.slice(0, -1));
+}
+
+/**
+ * Calculate the actual size from a percentage
+ * @param percentage - The percentage value (e.g., 50 for 50%)
+ * @param availableSize - The available size to calculate against
+ * @returns The calculated size in dots
+ */
+export function resolvePercentage(percentage: number, availableSize: number): number {
+  return Math.floor((percentage / 100) * availableSize);
+}
 
 // ==================== PADDING ====================
 
@@ -45,6 +78,34 @@ export interface ResolvedPadding {
   right: number;
   bottom: number;
   left: number;
+}
+
+// ==================== MARGIN ====================
+
+/**
+ * Margin specification
+ * - number: Same margin on all sides (in dots)
+ * - 'auto': Auto margin (used for centering)
+ * - object: Individual margin per side (values can be number or 'auto')
+ */
+export type MarginSpec = number | 'auto' | {
+  top?: number;
+  right?: number | 'auto';
+  bottom?: number;
+  left?: number | 'auto';
+};
+
+/**
+ * Resolved margin with all four sides
+ * Auto margins are stored as 0 with the autoHorizontal flag set
+ */
+export interface ResolvedMargin {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  /** True if horizontal margins should auto-center the element */
+  autoHorizontal?: boolean;
 }
 
 // ==================== ALIGNMENT ====================
@@ -118,12 +179,87 @@ export const DEFAULT_STYLE: ResolvedStyle = {
   cpi: 10,
 };
 
+// ==================== PAGINATION HINTS ====================
+
+/**
+ * Page break hint properties for controlling pagination behavior
+ */
+export interface PageBreakHints {
+  /** Force a page break before this node */
+  breakBefore?: boolean;
+  /** Force a page break after this node */
+  breakAfter?: boolean;
+  /** Keep this node and its children on the same page if possible */
+  keepTogether?: boolean;
+  /** Minimum number of children before allowing a page break (orphan control) */
+  minBeforeBreak?: number;
+  /** Minimum number of children after a page break (widow control) */
+  minAfterBreak?: number;
+}
+
+// ==================== CONDITIONAL CONTENT ====================
+
+/**
+ * Context passed to conditional content callbacks
+ * Provides information about available space for rendering decisions
+ */
+export interface SpaceContext {
+  /** Available width in dots */
+  availableWidth: number;
+  /** Available height in dots */
+  availableHeight: number;
+  /** Remaining width after previous siblings */
+  remainingWidth: number;
+  /** Remaining height after previous siblings */
+  remainingHeight: number;
+  /** Current page number (0-indexed) */
+  pageNumber: number;
+}
+
+/**
+ * Declarative space query for conditional content
+ * All conditions must be met for the content to be shown
+ */
+export interface SpaceQuery {
+  /** Minimum available width required */
+  minWidth?: number;
+  /** Maximum available width allowed */
+  maxWidth?: number;
+  /** Minimum available height required */
+  minHeight?: number;
+  /** Maximum available height allowed */
+  maxHeight?: number;
+}
+
+/**
+ * Condition for conditional content rendering
+ * Can be a callback function or a declarative SpaceQuery object
+ */
+export type ContentCondition =
+  | ((ctx: SpaceContext) => boolean)
+  | SpaceQuery;
+
+// ==================== POSITIONING ====================
+
+/**
+ * Positioning mode for layout nodes
+ * - 'static': Normal flow positioning (default)
+ * - 'relative': Normal flow with offset (element stays in flow but rendered offset)
+ * - 'absolute': Position at specific x,y coordinates (removed from flow)
+ */
+export type PositionMode = 'static' | 'relative' | 'absolute';
+
+/**
+ * Text orientation for vertical text support
+ */
+export type TextOrientation = 'horizontal' | 'vertical';
+
 // ==================== BASE NODE ====================
 
 /**
  * Base properties shared by all layout nodes
  */
-export interface LayoutNodeBase extends StyleProps {
+export interface LayoutNodeBase extends StyleProps, PageBreakHints {
   /** Optional identifier for debugging/tracking */
   id?: string;
   /** Width specification */
@@ -132,6 +268,36 @@ export interface LayoutNodeBase extends StyleProps {
   height?: HeightSpec;
   /** Padding inside the node */
   padding?: PaddingSpec;
+  /** Margin outside the node (spacing between siblings) */
+  margin?: MarginSpec;
+
+  // ===== SIZE CONSTRAINTS =====
+  /** Minimum width in dots */
+  minWidth?: number;
+  /** Maximum width in dots */
+  maxWidth?: number;
+  /** Minimum height in dots */
+  minHeight?: number;
+  /** Maximum height in dots */
+  maxHeight?: number;
+
+  // ===== POSITIONING =====
+  /** Positioning mode: 'static' (default), 'relative', or 'absolute' */
+  position?: PositionMode;
+  /** Absolute X position in dots (only used when position='absolute') */
+  posX?: number;
+  /** Absolute Y position in dots (only used when position='absolute') */
+  posY?: number;
+  /** Horizontal offset in dots (only used when position='relative') */
+  offsetX?: number;
+  /** Vertical offset in dots (only used when position='relative') */
+  offsetY?: number;
+
+  // ===== CONDITIONAL CONTENT =====
+  /** Condition for showing this node (callback or declarative query) */
+  when?: ContentCondition;
+  /** Fallback node to show when condition is false */
+  fallback?: LayoutNode;
 }
 
 // ==================== CONTAINER NODES ====================
@@ -158,6 +324,13 @@ export interface StackNode extends LayoutNodeBase {
  * Flex node - horizontal row with flexible distribution
  * Similar to CSS flexbox but simplified for printer layouts
  */
+/**
+ * Flex wrap mode
+ * - 'nowrap': All items stay on one line (default)
+ * - 'wrap': Items wrap to new lines when they don't fit
+ */
+export type FlexWrap = 'nowrap' | 'wrap';
+
 export interface FlexNode extends LayoutNodeBase {
   type: 'flex';
   /** Gap between children in dots */
@@ -166,6 +339,10 @@ export interface FlexNode extends LayoutNodeBase {
   justify?: JustifyContent;
   /** Vertical alignment of items */
   alignItems?: VAlign;
+  /** Whether to wrap items onto multiple lines */
+  wrap?: FlexWrap;
+  /** Gap between rows when wrapping */
+  rowGap?: number;
   /** Child nodes */
   children: LayoutNode[];
 }
@@ -195,6 +372,10 @@ export interface GridRowNode extends StyleProps {
   height?: number | undefined;
   /** Whether this is a header row (affects styling) */
   isHeader?: boolean | undefined;
+  /** Keep this row with the next row on the same page */
+  keepWithNext?: boolean | undefined;
+  /** Force a page break before this row */
+  breakBefore?: boolean | undefined;
 }
 
 // ==================== LEAF NODES ====================
@@ -208,6 +389,8 @@ export interface TextNode extends LayoutNodeBase {
   content: string;
   /** Horizontal alignment within available width */
   align?: HAlign;
+  /** Text orientation: 'horizontal' (default) or 'vertical' */
+  orientation?: TextOrientation;
 }
 
 /**
@@ -334,6 +517,35 @@ export function resolvePadding(padding?: PaddingSpec): ResolvedPadding {
     right: padding.right ?? 0,
     bottom: padding.bottom ?? 0,
     left: padding.left ?? 0,
+  };
+}
+
+/**
+ * Resolve margin specification to all four sides
+ * Auto margins are resolved to 0 with autoHorizontal flag set
+ */
+export function resolveMargin(margin?: MarginSpec): ResolvedMargin {
+  if (margin === undefined) {
+    return { top: 0, right: 0, bottom: 0, left: 0 };
+  }
+  if (margin === 'auto') {
+    // 'auto' on top-level means horizontal centering (left and right auto)
+    return { top: 0, right: 0, bottom: 0, left: 0, autoHorizontal: true };
+  }
+  if (typeof margin === 'number') {
+    return { top: margin, right: margin, bottom: margin, left: margin };
+  }
+  // Check for auto horizontal centering
+  const leftAuto = margin.left === 'auto';
+  const rightAuto = margin.right === 'auto';
+  const autoHorizontal = leftAuto && rightAuto;
+
+  return {
+    top: margin.top ?? 0,
+    right: typeof margin.right === 'number' ? margin.right : 0,
+    bottom: margin.bottom ?? 0,
+    left: typeof margin.left === 'number' ? margin.left : 0,
+    autoHorizontal: autoHorizontal || undefined,
   };
 }
 

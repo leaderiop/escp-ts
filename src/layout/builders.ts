@@ -18,10 +18,16 @@ import type {
   WidthSpec,
   HeightSpec,
   PaddingSpec,
+  MarginSpec,
   HAlign,
   VAlign,
   JustifyContent,
   StyleProps,
+  PositionMode,
+  ContentCondition,
+  SpaceQuery,
+  TextOrientation,
+  FlexWrap,
 } from './nodes';
 
 // ==================== TEXT OPTIONS ====================
@@ -34,6 +40,8 @@ export interface TextOptions extends StyleProps {
   align?: HAlign;
   /** Width specification */
   width?: WidthSpec;
+  /** Text orientation: 'horizontal' (default) or 'vertical' */
+  orientation?: TextOrientation;
 }
 
 /**
@@ -116,6 +124,12 @@ export class StackBuilder {
     return this;
   }
 
+  /** Set margin */
+  margin(m: MarginSpec): this {
+    this.node.margin = m;
+    return this;
+  }
+
   // === STYLE CONFIGURATION (inherited by children) ===
 
   /** Set bold style (inherited) */
@@ -151,6 +165,116 @@ export class StackBuilder {
   /** Set CPI (inherited) */
   cpi(value: number): this {
     this.node.cpi = value;
+    return this;
+  }
+
+  // === PAGINATION HINTS ===
+
+  /** Force a page break before this stack */
+  breakBefore(on: boolean = true): this {
+    this.node.breakBefore = on;
+    return this;
+  }
+
+  /** Force a page break after this stack */
+  breakAfter(on: boolean = true): this {
+    this.node.breakAfter = on;
+    return this;
+  }
+
+  /** Keep this stack and its children on the same page if possible */
+  keepTogether(on: boolean = true): this {
+    this.node.keepTogether = on;
+    return this;
+  }
+
+  /** Minimum number of children before allowing a page break (orphan control) */
+  minBeforeBreak(count: number): this {
+    this.node.minBeforeBreak = count;
+    return this;
+  }
+
+  /** Minimum number of children after a page break (widow control) */
+  minAfterBreak(count: number): this {
+    this.node.minAfterBreak = count;
+    return this;
+  }
+
+  // === SIZE CONSTRAINTS ===
+
+  /** Set minimum width in dots */
+  minWidth(dots: number): this {
+    this.node.minWidth = dots;
+    return this;
+  }
+
+  /** Set maximum width in dots */
+  maxWidth(dots: number): this {
+    this.node.maxWidth = dots;
+    return this;
+  }
+
+  /** Set minimum height in dots */
+  minHeight(dots: number): this {
+    this.node.minHeight = dots;
+    return this;
+  }
+
+  /** Set maximum height in dots */
+  maxHeight(dots: number): this {
+    this.node.maxHeight = dots;
+    return this;
+  }
+
+  // === POSITIONING ===
+
+  /** Set positioning mode: 'static' (default) or 'absolute' */
+  position(mode: PositionMode): this {
+    this.node.position = mode;
+    return this;
+  }
+
+  /** Set absolute X position in dots */
+  posX(dots: number): this {
+    this.node.posX = dots;
+    return this;
+  }
+
+  /** Set absolute Y position in dots */
+  posY(dots: number): this {
+    this.node.posY = dots;
+    return this;
+  }
+
+  /** Set absolute position (shorthand for position('absolute') + posX + posY) */
+  absolutePosition(x: number, y: number): this {
+    this.node.position = 'absolute';
+    this.node.posX = x;
+    this.node.posY = y;
+    return this;
+  }
+
+  /** Set relative position with offsets (element stays in flow but rendered offset) */
+  relativePosition(offsetX: number, offsetY: number): this {
+    this.node.position = 'relative';
+    this.node.offsetX = offsetX;
+    this.node.offsetY = offsetY;
+    return this;
+  }
+
+  // === CONDITIONAL CONTENT ===
+
+  /** Set condition for showing this node */
+  when(condition: ContentCondition): this {
+    this.node.when = condition;
+    return this;
+  }
+
+  /** Set fallback node to show when condition is false */
+  fallback(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
     return this;
   }
 
@@ -276,6 +400,18 @@ export class FlexBuilder {
     return this;
   }
 
+  /** Set wrap mode: 'nowrap' (default) or 'wrap' */
+  wrap(mode: FlexWrap): this {
+    this.node.wrap = mode;
+    return this;
+  }
+
+  /** Set gap between rows when wrapping (in dots) */
+  rowGap(dots: number): this {
+    this.node.rowGap = dots;
+    return this;
+  }
+
   /** Set width */
   width(w: WidthSpec): this {
     this.node.width = w;
@@ -291,6 +427,12 @@ export class FlexBuilder {
   /** Set padding */
   padding(p: PaddingSpec): this {
     this.node.padding = p;
+    return this;
+  }
+
+  /** Set margin */
+  margin(m: MarginSpec): this {
+    this.node.margin = m;
     return this;
   }
 
@@ -329,6 +471,104 @@ export class FlexBuilder {
   /** Set CPI (inherited) */
   cpi(value: number): this {
     this.node.cpi = value;
+    return this;
+  }
+
+  // === PAGINATION HINTS ===
+
+  /** Force a page break before this flex container */
+  breakBefore(on: boolean = true): this {
+    this.node.breakBefore = on;
+    return this;
+  }
+
+  /** Force a page break after this flex container */
+  breakAfter(on: boolean = true): this {
+    this.node.breakAfter = on;
+    return this;
+  }
+
+  /** Keep this flex container and its children on the same page if possible */
+  keepTogether(on: boolean = true): this {
+    this.node.keepTogether = on;
+    return this;
+  }
+
+  // === SIZE CONSTRAINTS ===
+
+  /** Set minimum width in dots */
+  minWidth(dots: number): this {
+    this.node.minWidth = dots;
+    return this;
+  }
+
+  /** Set maximum width in dots */
+  maxWidth(dots: number): this {
+    this.node.maxWidth = dots;
+    return this;
+  }
+
+  /** Set minimum height in dots */
+  minHeight(dots: number): this {
+    this.node.minHeight = dots;
+    return this;
+  }
+
+  /** Set maximum height in dots */
+  maxHeight(dots: number): this {
+    this.node.maxHeight = dots;
+    return this;
+  }
+
+  // === POSITIONING ===
+
+  /** Set positioning mode: 'static' (default) or 'absolute' */
+  position(mode: PositionMode): this {
+    this.node.position = mode;
+    return this;
+  }
+
+  /** Set absolute X position in dots */
+  posX(dots: number): this {
+    this.node.posX = dots;
+    return this;
+  }
+
+  /** Set absolute Y position in dots */
+  posY(dots: number): this {
+    this.node.posY = dots;
+    return this;
+  }
+
+  /** Set absolute position (shorthand for position('absolute') + posX + posY) */
+  absolutePosition(x: number, y: number): this {
+    this.node.position = 'absolute';
+    this.node.posX = x;
+    this.node.posY = y;
+    return this;
+  }
+
+  /** Set relative position with offsets (element stays in flow but rendered offset) */
+  relativePosition(offsetX: number, offsetY: number): this {
+    this.node.position = 'relative';
+    this.node.offsetX = offsetX;
+    this.node.offsetY = offsetY;
+    return this;
+  }
+
+  // === CONDITIONAL CONTENT ===
+
+  /** Set condition for showing this node */
+  when(condition: ContentCondition): this {
+    this.node.when = condition;
+    return this;
+  }
+
+  /** Set fallback node to show when condition is false */
+  fallback(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
     return this;
   }
 
@@ -423,6 +663,8 @@ export class GridBuilder {
   private currentRow: LayoutNode[] = [];
   private currentRowStyle: StyleProps = {};
   private isHeaderRow: boolean = false;
+  private currentRowKeepWithNext: boolean = false;
+  private currentRowBreakBefore: boolean = false;
 
   constructor(columns: WidthSpec[]) {
     this.node = {
@@ -464,6 +706,12 @@ export class GridBuilder {
     return this;
   }
 
+  /** Set margin */
+  margin(m: MarginSpec): this {
+    this.node.margin = m;
+    return this;
+  }
+
   // === STYLE CONFIGURATION (inherited by children) ===
 
   /** Set bold style (inherited) */
@@ -487,6 +735,118 @@ export class GridBuilder {
   /** Set CPI (inherited) */
   cpi(value: number): this {
     this.node.cpi = value;
+    return this;
+  }
+
+  // === PAGINATION HINTS (Grid-level) ===
+
+  /** Force a page break before this grid */
+  breakBefore(on: boolean = true): this {
+    this.node.breakBefore = on;
+    return this;
+  }
+
+  /** Force a page break after this grid */
+  breakAfter(on: boolean = true): this {
+    this.node.breakAfter = on;
+    return this;
+  }
+
+  /** Keep this entire grid on the same page if possible */
+  keepTogether(on: boolean = true): this {
+    this.node.keepTogether = on;
+    return this;
+  }
+
+  // === SIZE CONSTRAINTS ===
+
+  /** Set minimum width in dots */
+  minWidth(dots: number): this {
+    this.node.minWidth = dots;
+    return this;
+  }
+
+  /** Set maximum width in dots */
+  maxWidth(dots: number): this {
+    this.node.maxWidth = dots;
+    return this;
+  }
+
+  /** Set minimum height in dots */
+  minHeight(dots: number): this {
+    this.node.minHeight = dots;
+    return this;
+  }
+
+  /** Set maximum height in dots */
+  maxHeight(dots: number): this {
+    this.node.maxHeight = dots;
+    return this;
+  }
+
+  // === POSITIONING ===
+
+  /** Set positioning mode: 'static' (default) or 'absolute' */
+  position(mode: PositionMode): this {
+    this.node.position = mode;
+    return this;
+  }
+
+  /** Set absolute X position in dots */
+  posX(dots: number): this {
+    this.node.posX = dots;
+    return this;
+  }
+
+  /** Set absolute Y position in dots */
+  posY(dots: number): this {
+    this.node.posY = dots;
+    return this;
+  }
+
+  /** Set absolute position (shorthand for position('absolute') + posX + posY) */
+  absolutePosition(x: number, y: number): this {
+    this.node.position = 'absolute';
+    this.node.posX = x;
+    this.node.posY = y;
+    return this;
+  }
+
+  /** Set relative position with offsets (element stays in flow but rendered offset) */
+  relativePosition(offsetX: number, offsetY: number): this {
+    this.node.position = 'relative';
+    this.node.offsetX = offsetX;
+    this.node.offsetY = offsetY;
+    return this;
+  }
+
+  // === CONDITIONAL CONTENT ===
+
+  /** Set condition for showing this node */
+  when(condition: ContentCondition): this {
+    this.node.when = condition;
+    return this;
+  }
+
+  /** Set fallback node to show when condition is false */
+  fallback(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+      ? node.build()
+      : node;
+    return this;
+  }
+
+  // === PAGINATION HINTS (Row-level) ===
+
+  /** Keep the current row with the next row on the same page */
+  keepWithNext(): this {
+    this.currentRowKeepWithNext = true;
+    return this;
+  }
+
+  /** Force a page break before the current row */
+  rowBreakBefore(): this {
+    this.currentRowBreakBefore = true;
     return this;
   }
 
@@ -520,12 +880,17 @@ export class GridBuilder {
         cells: this.currentRow,
         height,
         isHeader: this.isHeaderRow,
+        keepWithNext: this.currentRowKeepWithNext || undefined,
+        breakBefore: this.currentRowBreakBefore || undefined,
         ...this.currentRowStyle,
       };
       this.node.rows.push(rowNode);
+      // Reset row state
       this.currentRow = [];
       this.currentRowStyle = {};
       this.isHeaderRow = false;
+      this.currentRowKeepWithNext = false;
+      this.currentRowBreakBefore = false;
     }
     return this;
   }
@@ -652,4 +1017,20 @@ export function line(char: string = '-', length?: number | 'fill'): LineNode {
     char,
     length,
   };
+}
+
+/**
+ * Create a declarative space query for conditional content
+ *
+ * @example
+ * ```typescript
+ * // Show content only if at least 200 dots of height available
+ * stack()
+ *   .when(spaceQuery({ minHeight: 200 }))
+ *   .text('This requires 200 dots of height')
+ *   .build()
+ * ```
+ */
+export function spaceQuery(query: SpaceQuery): SpaceQuery {
+  return query;
 }

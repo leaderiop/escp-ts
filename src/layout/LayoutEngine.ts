@@ -42,6 +42,7 @@ import type { LayoutNode, WidthSpec } from './nodes';
 import { measureNode, type MeasureContext } from './measure';
 import { performLayout } from './layout';
 import { renderLayout } from './renderer';
+import { paginateLayout, createPageConfig } from './pagination';
 import { StackBuilder, FlexBuilder, GridBuilder, stack, flex, grid } from './builders';
 
 /**
@@ -74,14 +75,15 @@ export const LQ_2090II_PROFILE: PrinterProfile = {
 
 /**
  * Default layout engine options
+ * Paper: CUPS Custom.1069x615 (lpoptions -p EPSON_LQ_2090II -o PageSize=Custom.1069x615)
  */
 export const DEFAULT_ENGINE_OPTIONS: LayoutEngineOptions = {
   profile: LQ_2090II_PROFILE,
   defaultPaper: {
-    widthInches: 8.5,
-    heightInches: 11,
-    margins: { top: 90, bottom: 90, left: 90, right: 90 },
-    linesPerPage: 66,
+    widthInches: 1069 / 72,   // 14.847 inches (1069 points)
+    heightInches: 615 / 72,   // 8.542 inches (615 points)
+    margins: { top: 90, bottom: 90, left: 225, right: 225 },
+    linesPerPage: 51,
   },
   defaultFont: {
     typeface: TYPEFACE.ROMAN as Typeface,
@@ -852,11 +854,17 @@ export class LayoutEngine {
   // ==================== LAYOUT SYSTEM ====================
 
   /**
-   * Render a virtual layout tree
+   * Render a virtual layout tree with automatic pagination
    *
-   * This is the main entry point for the new layout system. It takes a
+   * This is the main entry point for the layout system. It takes a
    * layout node (built using stack(), flex(), or grid() builders) and
-   * renders it to ESC/P2 commands.
+   * renders it to ESC/P2 commands with automatic page breaks.
+   *
+   * The pagination system:
+   * - Automatically inserts form feeds when content exceeds page height
+   * - Never splits grid rows (they are atomic units)
+   * - Respects keepTogether, breakBefore, breakAfter hints
+   * - Supports widow/orphan control via minBeforeBreak/minAfterBreak
    *
    * @param node - The layout node to render
    * @returns this for chaining
@@ -905,21 +913,56 @@ export class LayoutEngine {
       measureCtx.availableHeight
     );
 
-    // Phase 3: Render to commands
-    const renderResult = renderLayout(layoutResult, {
-      startX: state.x,
-      startY: state.y,
-      charset: state.internationalCharset,
-      charTable: state.charTable,
-      lineSpacing: state.lineSpacing,
-      initialStyle: measureCtx.style,
-    });
+    // Phase 3: Pagination
+    const pageConfig = createPageConfig(
+      getPageHeight(state.paper),
+      state.paper.margins.top,
+      state.paper.margins.bottom
+    );
+    const paginated = paginateLayout(layoutResult, pageConfig);
 
-    // Emit generated commands
-    this.emit(renderResult.commands);
+    // Phase 4: Render each page with form feeds between
+    let finalY = state.y;
+
+    for (let pageIdx = 0; pageIdx < paginated.pages.length; pageIdx++) {
+      const page = paginated.pages[pageIdx];
+      if (!page) continue;
+
+      // Emit form feed before subsequent pages
+      if (pageIdx > 0) {
+        this.emit(CommandBuilder.formFeed());
+        this.stateManager.formFeed();
+
+        // Save completed page
+        this.pages.push({
+          number: this.pages.length,
+          elements: this.currentPageElements,
+          size: {
+            width: getPageWidth(state.paper),
+            height: getPageHeight(state.paper),
+          },
+        });
+        this.currentPageElements = [];
+      }
+
+      // Render all items on this page
+      for (const item of page.items) {
+        const renderResult = renderLayout(item, {
+          startX: state.paper.margins.left,
+          startY: page.startY,
+          charset: state.internationalCharset,
+          charTable: state.charTable,
+          lineSpacing: state.lineSpacing,
+          initialStyle: measureCtx.style,
+        });
+
+        this.emit(renderResult.commands);
+        finalY = renderResult.finalY;
+      }
+    }
 
     // Update position to after the layout
-    this.stateManager.moveTo(state.paper.margins.left, renderResult.finalY);
+    this.stateManager.moveTo(state.paper.margins.left, finalY);
 
     return this;
   }

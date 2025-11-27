@@ -7,7 +7,7 @@
  */
 
 import type { LayoutResult } from './layout';
-import type { TextNode, LineNode, ResolvedStyle } from './nodes';
+import type { TextNode, LineNode, ResolvedStyle, TextOrientation } from './nodes';
 import { CommandBuilder } from '../commands/CommandBuilder';
 import { encodeText } from '../fonts/CharacterSet';
 import { INTERNATIONAL_CHARSET, CHAR_TABLE } from '../core/constants';
@@ -39,7 +39,7 @@ export interface RenderItem {
  * Render item data variants
  */
 export type RenderItemData =
-  | { type: 'text'; content: string }
+  | { type: 'text'; content: string; orientation: TextOrientation }
   | { type: 'line'; char: string; length: number };
 
 // ==================== FLATTEN TREE ====================
@@ -69,7 +69,11 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
         width: result.width,
         height: result.height,
         style: result.style,
-        data: { type: 'text', content: textNode.content },
+        data: {
+          type: 'text',
+          content: textNode.content,
+          orientation: textNode.orientation ?? 'horizontal',
+        },
       });
       break;
     }
@@ -110,11 +114,11 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
  */
 export function sortRenderItems(items: RenderItem[]): RenderItem[] {
   return [...items].sort((a, b) => {
-    // Primary sort by Y position
+    // Primary sort by Y position (top to bottom)
     if (a.y !== b.y) {
       return a.y - b.y;
     }
-    // Secondary sort by X position
+    // Secondary sort by X position (left to right)
     return a.x - b.x;
   });
 }
@@ -183,12 +187,15 @@ function moveToY(ctx: RenderContext, y: number): void {
     const deltaY = y - ctx.currentY;
 
     // Use ESC J for advancing in 1/180 inch increments
-    const units180 = Math.round(deltaY / 2); // 360/180 = 2
+    let units180 = Math.round(deltaY / 2); // 360/180 = 2
 
-    if (units180 > 0) {
-      emit(ctx, CommandBuilder.advanceVertical(units180));
-      ctx.currentY = y;
+    // ESC J max is 255, so break into multiple commands if needed
+    while (units180 > 0) {
+      const advance = Math.min(units180, 255);
+      emit(ctx, CommandBuilder.advanceVertical(advance));
+      units180 -= advance;
     }
+    ctx.currentY = y;
   }
   // Note: We don't support moving backwards (up the page)
 }
@@ -256,6 +263,12 @@ function applyStyle(ctx: RenderContext, style: ResolvedStyle): void {
 function renderTextItem(ctx: RenderContext, item: RenderItem): void {
   if (item.data.type !== 'text') return;
 
+  if (item.data.orientation === 'vertical') {
+    renderVerticalText(ctx, item);
+    return;
+  }
+
+  // Horizontal text (default)
   // Position
   moveToY(ctx, item.y);
   moveToX(ctx, item.x);
@@ -269,6 +282,44 @@ function renderTextItem(ctx: RenderContext, item: RenderItem): void {
 
   // Update X position after printing
   ctx.currentX = item.x + item.width;
+}
+
+/**
+ * Render vertical text character by character
+ */
+function renderVerticalText(ctx: RenderContext, item: RenderItem): void {
+  if (item.data.type !== 'text') return;
+
+  const content = item.data.content;
+  const charHeight = ctx.lineSpacing;
+  let currentY = item.y;
+
+  // Apply style once
+  applyStyle(ctx, item.style);
+
+  // Calculate character width based on current CPI
+  const charWidth = Math.round(360 / item.style.cpi);
+
+  for (const char of content) {
+    // Position for this character
+    moveToY(ctx, currentY);
+    moveToX(ctx, item.x);
+
+    // Print single character
+    const encoded = encodeText(char, ctx.charset, ctx.charTable);
+    emit(ctx, encoded);
+
+    // Update X position to reflect printer head movement after printing
+    // This ensures the next moveToX call will reposition correctly
+    ctx.currentX = item.x + charWidth;
+
+    // Move down for next character
+    currentY += charHeight;
+  }
+
+  // Update position after rendering
+  ctx.currentY = currentY;
+  ctx.currentX = item.x + charWidth;
 }
 
 /**

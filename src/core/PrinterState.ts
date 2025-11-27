@@ -57,23 +57,26 @@ export const DEFAULT_FONT_CONFIG: FontConfig = {
 
 /**
  * Default margins in dots (1/360 inch units)
- * Standard margins: 0.25 inch all around
+ * Top/bottom: 0.25 inch (90 dots)
+ * Left/right: ~0.624 inch (225 dots) to center 13.6" printable on 14.847" paper
  */
 export const DEFAULT_MARGINS: Margins = {
-  top: 90, // 0.25 * 360
+  top: 90,    // 0.25 * 360
   bottom: 90,
-  left: 90,
-  right: 90,
+  left: 225,  // (14.847 - 13.6) / 2 * 360 ≈ 225
+  right: 225,
 };
 
 /**
- * Default paper configuration (US Letter)
+ * Default paper configuration
+ * CUPS Custom.1069x615: lpoptions -p EPSON_LQ_2090II -o PageSize=Custom.1069x615
+ * 1069x615 points = 14.847" x 8.542" (1 point = 1/72 inch)
  */
 export const DEFAULT_PAPER_CONFIG: PaperConfig = {
-  widthInches: 8.5,
-  heightInches: 11,
+  widthInches: 1069 / 72,   // 14.847 inches
+  heightInches: 615 / 72,   // 8.542 inches
   margins: { ...DEFAULT_MARGINS },
-  linesPerPage: 66, // 11 inches at 6 lines per inch
+  linesPerPage: 51,         // ~8.542 inches at 6 lines per inch
 };
 
 /**

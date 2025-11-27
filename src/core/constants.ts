@@ -262,6 +262,15 @@ export const PAPER_SIZE = {
   CONTINUOUS_80: { width: 9.5, height: 11 }, // 80-column continuous
 } as const;
 
+// CUPS Custom Page Size: lpoptions -p EPSON_LQ_2090II -o PageSize=Custom.1069x615
+// 1069x615 points (1 point = 1/72 inch)
+export const CUPS_CUSTOM_1069x615 = {
+  widthPoints: 1069,
+  heightPoints: 615,
+  widthInches: 1069 / 72,  // 14.847 inches
+  heightInches: 615 / 72,  // 8.542 inches
+} as const;
+
 // LQ-2090II Specific Constants
 export const LQ_2090II = {
   MAX_PRINT_WIDTH_INCHES: 13.6, // 136 columns at 10 CPI

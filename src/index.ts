@@ -145,18 +145,33 @@ export type {
   WidthSpec,
   HeightSpec,
   PaddingSpec,
+  MarginSpec,
+  PercentageString,
   HAlign,
   VAlign,
   JustifyContent,
   StyleProps,
   ResolvedStyle,
   ResolvedPadding,
+  ResolvedMargin,
+  PageBreakHints,
+  // Advanced layout types
+  SpaceContext,
+  SpaceQuery,
+  ContentCondition,
+  PositionMode,
+  TextOrientation,
+  FlexWrap,
 } from './layout/nodes';
 
 export {
   DEFAULT_STYLE,
   resolvePadding,
+  resolveMargin,
   resolveStyle,
+  isPercentage,
+  parsePercentage,
+  resolvePercentage,
   isContainerNode,
   isStackNode,
   isFlexNode,
@@ -178,6 +193,7 @@ export {
   text,
   spacer,
   line,
+  spaceQuery,
   type TextOptions,
   type CellOptions,
 } from './layout/builders';
@@ -188,6 +204,7 @@ export {
   DEFAULT_MEASURE_CONTEXT,
   type MeasuredNode,
   type MeasureContext,
+  type FlexLine,
 } from './layout/measure';
 
 // Layout system - Layout phase
@@ -208,6 +225,15 @@ export {
   type RenderResult,
   type RenderOptions,
 } from './layout/renderer';
+
+// Layout system - Pagination
+export {
+  paginateLayout,
+  createPageConfig,
+  type PageConfig,
+  type PageSegment,
+  type PaginatedLayoutResult,
+} from './layout/pagination';
 
 // Virtual renderer
 export {

@@ -9,6 +9,7 @@ import {
   text,
   spacer,
   line,
+  spaceQuery,
 } from './builders';
 
 describe('builders', () => {
@@ -51,6 +52,16 @@ describe('builders', () => {
     it('sets padding', () => {
       const node = stack().padding(10).build();
       expect(node.padding).toBe(10);
+    });
+
+    it('sets margin as uniform number', () => {
+      const node = stack().margin(15).build();
+      expect(node.margin).toBe(15);
+    });
+
+    it('sets margin as object', () => {
+      const node = stack().margin({ top: 10, right: 20, bottom: 30, left: 40 }).build();
+      expect(node.margin).toEqual({ top: 10, right: 20, bottom: 30, left: 40 });
     });
 
     it('sets style properties', () => {
@@ -155,6 +166,43 @@ describe('builders', () => {
       expect(node.bold).toBe(true);
       expect(node.children.length).toBe(2);
     });
+
+    it('sets minWidth and maxWidth', () => {
+      const node = stack().minWidth(100).maxWidth(500).build();
+      expect(node.minWidth).toBe(100);
+      expect(node.maxWidth).toBe(500);
+    });
+
+    it('sets minHeight and maxHeight', () => {
+      const node = stack().minHeight(50).maxHeight(200).build();
+      expect(node.minHeight).toBe(50);
+      expect(node.maxHeight).toBe(200);
+    });
+
+    it('sets absolute position', () => {
+      const node = stack().absolutePosition(100, 200).build();
+      expect(node.position).toBe('absolute');
+      expect(node.posX).toBe(100);
+      expect(node.posY).toBe(200);
+    });
+
+    it('sets when condition with callback', () => {
+      const condition = (ctx: { availableWidth: number }) => ctx.availableWidth > 500;
+      const node = stack().when(condition).build();
+      expect(node.when).toBe(condition);
+    });
+
+    it('sets when condition with SpaceQuery', () => {
+      const query = spaceQuery({ minWidth: 500, maxHeight: 1000 });
+      const node = stack().when(query).build();
+      expect(node.when).toEqual(query);
+    });
+
+    it('sets fallback node', () => {
+      const fallbackNode = text('Fallback');
+      const node = stack().when((ctx) => ctx.availableWidth > 5000).fallback(fallbackNode).build();
+      expect(node.fallback).toBe(fallbackNode);
+    });
   });
 
   // ==================== FLEX BUILDER ====================
@@ -190,6 +238,11 @@ describe('builders', () => {
     it('sets padding', () => {
       const node = flex().padding({ top: 5, bottom: 5 }).build();
       expect(node.padding).toEqual({ top: 5, bottom: 5 });
+    });
+
+    it('sets margin', () => {
+      const node = flex().margin({ left: 20, right: 20 }).build();
+      expect(node.margin).toEqual({ left: 20, right: 20 });
     });
 
     it('sets style properties', () => {
@@ -265,6 +318,11 @@ describe('builders', () => {
     it('sets padding', () => {
       const node = grid([100]).padding(15).build();
       expect(node.padding).toBe(15);
+    });
+
+    it('sets margin', () => {
+      const node = grid([100]).margin(25).build();
+      expect(node.margin).toBe(25);
     });
 
     it('sets style properties', () => {
@@ -349,6 +407,18 @@ describe('builders', () => {
       const node = grid([100]).row().row().build();
       expect(node.rows.length).toBe(0);
     });
+
+    it('supports colSpan option', () => {
+      const node = grid([100, 100, 100])
+        .cell('Spans two columns', { colSpan: 2 })
+        .cell('Single')
+        .row()
+        .build();
+      // The cell should have colSpan set
+      const firstCell = node.rows[0]?.cells[0];
+      expect(firstCell).toBeDefined();
+      expect((firstCell as { colSpan?: number }).colSpan).toBe(2);
+    });
   });
 
   // ==================== FACTORY FUNCTIONS ====================
@@ -431,6 +501,24 @@ describe('builders', () => {
       it('creates a line with fixed length', () => {
         const node = line('*', 100);
         expect(node.length).toBe(100);
+      });
+    });
+
+    describe('spaceQuery()', () => {
+      it('creates a SpaceQuery object with all options', () => {
+        const query = spaceQuery({ minWidth: 500, maxWidth: 1000, minHeight: 200, maxHeight: 800 });
+        expect(query.minWidth).toBe(500);
+        expect(query.maxWidth).toBe(1000);
+        expect(query.minHeight).toBe(200);
+        expect(query.maxHeight).toBe(800);
+      });
+
+      it('creates a SpaceQuery with partial options', () => {
+        const query = spaceQuery({ minWidth: 300 });
+        expect(query.minWidth).toBe(300);
+        expect(query.maxWidth).toBeUndefined();
+        expect(query.minHeight).toBeUndefined();
+        expect(query.maxHeight).toBeUndefined();
       });
     });
   });

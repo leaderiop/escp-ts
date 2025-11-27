@@ -32,7 +32,7 @@ describe('renderer', () => {
 
       expect(items.length).toBe(1);
       expect(items[0].type).toBe('text');
-      expect(items[0].data).toEqual({ type: 'text', content: 'Hello' });
+      expect(items[0].data).toEqual({ type: 'text', content: 'Hello', orientation: 'horizontal' });
     });
 
     it('flattens line node', () => {
@@ -52,8 +52,8 @@ describe('renderer', () => {
       const items = flattenTree(layout);
 
       expect(items.length).toBe(2);
-      expect(items[0].data).toEqual({ type: 'text', content: 'Line 1' });
-      expect(items[1].data).toEqual({ type: 'text', content: 'Line 2' });
+      expect(items[0].data).toEqual({ type: 'text', content: 'Line 1', orientation: 'horizontal' });
+      expect(items[1].data).toEqual({ type: 'text', content: 'Line 2', orientation: 'horizontal' });
     });
 
     it('flattens flex with children', () => {

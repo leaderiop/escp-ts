@@ -35,6 +35,28 @@ describe('measure', () => {
       expect(measured.preferredHeight).toBe(60 + 20); // height + top + bottom
     });
 
+    it('measures text with margin', () => {
+      const node = text('Hi');
+      node.margin = 15;
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      const baseWidth = measureNode(text('Hi'), ctx, DEFAULT_STYLE).minContentWidth;
+      expect(measured.preferredWidth).toBe(baseWidth + 30); // margin on both sides
+      expect(measured.preferredHeight).toBe(60 + 30); // height + top + bottom margin
+      expect(measured.margin).toEqual({ top: 15, right: 15, bottom: 15, left: 15 });
+    });
+
+    it('measures text with object margin', () => {
+      const node = text('Hi');
+      node.margin = { top: 10, right: 20, bottom: 30, left: 40 };
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      const baseWidth = measureNode(text('Hi'), ctx, DEFAULT_STYLE).minContentWidth;
+      expect(measured.preferredWidth).toBe(baseWidth + 20 + 40); // left + right margin
+      expect(measured.preferredHeight).toBe(60 + 10 + 30); // height + top + bottom margin
+      expect(measured.margin).toEqual({ top: 10, right: 20, bottom: 30, left: 40 });
+    });
+
     it('measures text with double height', () => {
       const node = text('Test');
       node.doubleHeight = true;
@@ -172,6 +194,20 @@ describe('measure', () => {
       const measured = measureNode(node, ctx, DEFAULT_STYLE);
 
       expect(measured.preferredWidth).toBe(300);
+    });
+
+    it('measures stack with percentage width', () => {
+      const node = stack().width('50%').text('Test').build();
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      expect(measured.preferredWidth).toBe(500); // 50% of 1000
+    });
+
+    it('measures stack with percentage height', () => {
+      const node = stack().height('25%').text('Test').build();
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      expect(measured.preferredHeight).toBe(125); // 25% of 500
     });
 
     it('propagates style to children', () => {
@@ -358,6 +394,81 @@ describe('measure', () => {
       const measured = measureNode(node, ctx, DEFAULT_STYLE);
 
       expect(measured.children[0]?.columnWidths?.length).toBe(2);
+    });
+  });
+
+  // ==================== MIN/MAX SIZE CONSTRAINTS ====================
+
+  describe('min/max size constraints', () => {
+    it('applies minWidth to text node', () => {
+      const node = text('Hi'); // Short text
+      node.minWidth = 500;
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      expect(measured.preferredWidth).toBeGreaterThanOrEqual(500);
+    });
+
+    it('applies maxWidth to text node', () => {
+      const node = text('This is a very long text string');
+      node.maxWidth = 100;
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      expect(measured.preferredWidth).toBeLessThanOrEqual(100);
+    });
+
+    it('applies minHeight to stack', () => {
+      const node = stack().text('Short').build();
+      node.minHeight = 200;
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      expect(measured.preferredHeight).toBeGreaterThanOrEqual(200);
+    });
+
+    it('applies maxHeight to stack', () => {
+      const node = stack().text('Line 1').text('Line 2').text('Line 3').build();
+      node.maxHeight = 50;
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      expect(measured.preferredHeight).toBeLessThanOrEqual(50);
+    });
+
+    it('applies combined min and max constraints', () => {
+      const node = stack().text('Test').build();
+      node.minWidth = 100;
+      node.maxWidth = 200;
+      node.minHeight = 50;
+      node.maxHeight = 100;
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      expect(measured.preferredWidth).toBeGreaterThanOrEqual(100);
+      expect(measured.preferredWidth).toBeLessThanOrEqual(200);
+      expect(measured.preferredHeight).toBeGreaterThanOrEqual(50);
+      expect(measured.preferredHeight).toBeLessThanOrEqual(100);
+    });
+  });
+
+  // ==================== VERTICAL TEXT ORIENTATION ====================
+
+  describe('vertical text orientation', () => {
+    it('measures vertical text with height based on character count', () => {
+      const node = text('HELLO');
+      node.orientation = 'vertical';
+      const measured = measureNode(node, ctx, DEFAULT_STYLE);
+
+      // Vertical text: height = charCount * lineSpacing, width = single char width
+      expect(measured.minContentHeight).toBe(60 * 5); // 5 chars * 60 lineSpacing
+    });
+
+    it('measures vertical text width as single character', () => {
+      const horizontalNode = text('HELLO');
+      const verticalNode = text('HELLO');
+      verticalNode.orientation = 'vertical';
+
+      const horizontalMeasured = measureNode(horizontalNode, ctx, DEFAULT_STYLE);
+      const verticalMeasured = measureNode(verticalNode, ctx, DEFAULT_STYLE);
+
+      // Vertical should be narrower than horizontal (single char vs full text)
+      expect(verticalMeasured.minContentWidth).toBeLessThan(horizontalMeasured.minContentWidth);
     });
   });
 
