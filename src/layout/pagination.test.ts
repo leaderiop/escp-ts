@@ -455,3 +455,96 @@ describe('createPageConfig', () => {
     expect(config.printableHeight).toBe(500);
   });
 });
+
+// ==================== BUG FIX: MARGIN/PADDING PRESERVATION ====================
+
+describe('pagination margin/padding preservation', () => {
+  it('preserves container margin.top on first page', () => {
+    // A stack with margin.top should have its first item at topMargin + margin.top
+    const node = stack()
+      .margin({ top: 30 })
+      .text('Content with margin')
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    expect(result.pageCount).toBe(1);
+    // First item should be at topMargin (50) + container margin.top (30) = 80
+    expect(result.pages[0]?.items[0]?.y).toBe(80);
+  });
+
+  it('preserves container margin.top when content spans multiple pages', () => {
+    const builder = stack().margin({ top: 40 }).gap(30);
+    for (let i = 0; i < 15; i++) {
+      builder.text(`Line ${i + 1}`);
+    }
+    const node = builder.build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    expect(result.pageCount).toBeGreaterThan(1);
+
+    // First page: first item at topMargin + margin.top = 50 + 40 = 90
+    expect(result.pages[0]?.items[0]?.y).toBe(90);
+
+    // Second page: items should start at topMargin (margins don't repeat)
+    const page2Items = result.pages[1]?.items ?? [];
+    expect(page2Items.length).toBeGreaterThan(0);
+    expect(page2Items[0]?.y).toBe(TEST_PAGE_CONFIG.topMargin);
+  });
+
+  it('preserves container padding.top on first page', () => {
+    const node = stack()
+      .padding({ top: 25 })
+      .text('Content with padding')
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    expect(result.pageCount).toBe(1);
+    // First item should be at topMargin (50) + padding.top (25) = 75
+    expect(result.pages[0]?.items[0]?.y).toBe(75);
+  });
+
+  it('preserves nested container margins on first page', () => {
+    const node = stack()
+      .margin({ top: 20 })
+      .add(
+        stack()
+          .margin({ top: 15 })
+          .text('Nested with margin')
+      )
+      .build();
+
+    const layout = measureAndLayout(node);
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    expect(result.pageCount).toBe(1);
+    // Nested item: topMargin (50) + outer margin (20) + inner margin (15) = 85
+    expect(result.pages[0]?.items[0]?.y).toBe(85);
+  });
+
+  it('handles grid with margin.top spanning pages', () => {
+    const node = grid([200, 200]).margin({ top: 35 }).rowGap(20);
+    for (let i = 0; i < 10; i++) {
+      node.cell(`Row ${i} A`).cell(`Row ${i} B`).row();
+    }
+
+    const layout = measureAndLayout(node.build());
+    const result = paginateLayout(layout, TEST_PAGE_CONFIG);
+
+    expect(result.pageCount).toBeGreaterThan(1);
+
+    // First page: first item at topMargin + margin.top = 50 + 35 = 85
+    expect(result.pages[0]?.items[0]?.y).toBe(85);
+
+    // Second page: starts at topMargin
+    const page2Items = result.pages[1]?.items ?? [];
+    if (page2Items.length > 0) {
+      expect(page2Items[0]?.y).toBe(TEST_PAGE_CONFIG.topMargin);
+    }
+  });
+});

@@ -414,7 +414,7 @@ describe('layout', () => {
       expect(result.y).toBe(200);
     });
 
-    it('respects posX only (posY defaults to context)', () => {
+    it('respects posX only (posY defaults to 0)', () => {
       const node = stack().text('Test').build();
       node.position = 'absolute';
       node.posX = 150;
@@ -422,17 +422,17 @@ describe('layout', () => {
       const result = layoutNode(measured, { x: 50, y: 75, width: 1000, height: 500 });
 
       expect(result.x).toBe(150); // Uses posX
-      expect(result.y).toBe(75); // Falls back to context y
+      expect(result.y).toBe(0); // Defaults to 0 (page origin), not context
     });
 
-    it('respects posY only (posX defaults to context)', () => {
+    it('respects posY only (posX defaults to 0)', () => {
       const node = stack().text('Test').build();
       node.position = 'absolute';
       node.posY = 250;
       const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
       const result = layoutNode(measured, { x: 50, y: 75, width: 1000, height: 500 });
 
-      expect(result.x).toBe(50); // Falls back to context x
+      expect(result.x).toBe(0); // Defaults to 0 (page origin), not context
       expect(result.y).toBe(250); // Uses posY
     });
 
@@ -635,7 +635,7 @@ describe('layout', () => {
   // ==================== RELATIVE POSITIONING ====================
 
   describe('relative positioning', () => {
-    it('offsets node from normal position', () => {
+    it('stores offset in relativeOffset (applied at render time)', () => {
       const node = stack()
         .relativePosition(50, 30)
         .text('Offset')
@@ -643,12 +643,15 @@ describe('layout', () => {
       const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
       const result = layoutNode(measured, { x: 100, y: 100, width: 1000, height: 500 });
 
-      // Position should be normal position plus offset
-      expect(result.x).toBe(150); // 100 + 50
-      expect(result.y).toBe(130); // 100 + 30
+      // Position stays at flow position (offset applied at render time)
+      expect(result.x).toBe(100); // Flow position
+      expect(result.y).toBe(100); // Flow position
+      // Offset stored for render-time application
+      expect(result.relativeOffset?.x).toBe(50);
+      expect(result.relativeOffset?.y).toBe(30);
     });
 
-    it('applies negative offsets', () => {
+    it('stores negative offsets in relativeOffset', () => {
       const node = stack()
         .relativePosition(-20, -10)
         .text('Negative offset')
@@ -656,8 +659,10 @@ describe('layout', () => {
       const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
       const result = layoutNode(measured, { x: 100, y: 100, width: 1000, height: 500 });
 
-      expect(result.x).toBe(80); // 100 - 20
-      expect(result.y).toBe(90); // 100 - 10
+      expect(result.x).toBe(100); // Flow position preserved
+      expect(result.y).toBe(100); // Flow position preserved
+      expect(result.relativeOffset?.x).toBe(-20);
+      expect(result.relativeOffset?.y).toBe(-10);
     });
 
     it('does not affect sibling positioning (stays in flow)', () => {
@@ -676,13 +681,12 @@ describe('layout', () => {
       // First child at y=0
       expect(result.children[0]?.y).toBe(0);
 
-      // Second child (with relative) - its y is offset but the layout space is still taken
-      // The relative child's actual rendered y is offset, but flow is preserved
+      // Second child (with relative) - flow position preserved, offset in relativeOffset
       const relativeChild = result.children[1];
-      expect(relativeChild?.x).toBe(100); // Offset applied
+      expect(relativeChild?.x).toBe(0); // Flow position (offset in relativeOffset)
+      expect(relativeChild?.relativeOffset?.x).toBe(100); // Offset stored
 
       // Third child should be after the second child's flow position (not rendered position)
-      // Second child takes 60px + 10 gap = y should be 70, third should be 70 + 60 = 130
       const afterY = result.children[2]?.y ?? 0;
       expect(afterY).toBeGreaterThan(result.children[0]?.y ?? 0);
     });
@@ -695,8 +699,10 @@ describe('layout', () => {
       const measured = measureNode(node, DEFAULT_MEASURE_CONTEXT, DEFAULT_STYLE);
       const result = layoutNode(measured, { x: 0, y: 0, width: 500, height: 100 });
 
-      expect(result.x).toBe(25);
-      expect(result.y).toBe(15);
+      expect(result.x).toBe(0); // Flow position
+      expect(result.y).toBe(0); // Flow position
+      expect(result.relativeOffset?.x).toBe(25);
+      expect(result.relativeOffset?.y).toBe(15);
     });
   });
 
@@ -779,6 +785,108 @@ describe('layout', () => {
 
       // Single child should be at start
       expect(result.children[0]?.x).toBe(0);
+    });
+  });
+
+  // ==================== BUG FIX: AUTO MARGINS WITH EXPLICIT WIDTH ====================
+
+  describe('auto margins with explicit width', () => {
+    it('centers text node with explicit width and margin auto', () => {
+      const node = text('Short');
+      node.width = 400;
+      node.margin = 'auto';
+
+      const measured = measureNode(node, {
+        ...DEFAULT_MEASURE_CONTEXT,
+        availableWidth: 1000,
+      }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // With explicit width 400 in 1000 container: x = (1000-400)/2 = 300
+      expect(result.x).toBe(300);
+      expect(result.width).toBe(400);
+    });
+
+    it('centers stack with explicit width and auto margins', () => {
+      const child = stack().width(500).margin('auto').text('Content').build();
+      const parent = stack().width('fill').add(child).build();
+
+      const measured = measureNode(parent, {
+        ...DEFAULT_MEASURE_CONTEXT,
+        availableWidth: 1000,
+      }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 500 });
+
+      const childResult = result.children[0];
+      expect(childResult?.width).toBe(500);
+      expect(childResult?.x).toBe(250); // (1000-500)/2
+    });
+
+    it('centers text node with percentage width and margin auto', () => {
+      const node = text('Centered');
+      node.width = '50%';
+      node.margin = 'auto';
+
+      const measured = measureNode(node, {
+        ...DEFAULT_MEASURE_CONTEXT,
+        availableWidth: 1000,
+      }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // 50% of 1000 = 500, centered: x = (1000-500)/2 = 250
+      expect(result.width).toBe(500);
+      expect(result.x).toBe(250);
+    });
+
+    it('does not truncate text in auto-margin box with explicit width', () => {
+      const longText = 'This is a longer piece of text that should fit';
+      const node = text(longText);
+      node.width = 600;
+      node.margin = 'auto';
+
+      const measured = measureNode(node, {
+        ...DEFAULT_MEASURE_CONTEXT,
+        availableWidth: 1000,
+      }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // Width should be the explicit width (600), not truncated to text width
+      expect(result.width).toBe(600);
+      // Centered: x = (1000-600)/2 = 200
+      expect(result.x).toBe(200);
+    });
+
+    it('uses content width for centering when no explicit width', () => {
+      const node = text('Short');
+      node.margin = 'auto';
+      // No explicit width set
+
+      const measured = measureNode(node, {
+        ...DEFAULT_MEASURE_CONTEXT,
+        availableWidth: 1000,
+      }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // Should center based on content width (existing behavior)
+      const expectedX = Math.floor((1000 - result.width) / 2);
+      expect(result.x).toBe(expectedX);
+    });
+
+    it('handles explicit width smaller than content with margin auto', () => {
+      const node = text('This is a very long text that exceeds width');
+      node.width = 200;
+      node.margin = 'auto';
+      node.overflow = 'ellipsis';
+
+      const measured = measureNode(node, {
+        ...DEFAULT_MEASURE_CONTEXT,
+        availableWidth: 1000,
+      }, DEFAULT_STYLE);
+      const result = layoutNode(measured, { x: 0, y: 0, width: 1000, height: 100 });
+
+      // Should be centered based on explicit width (200), not content
+      expect(result.x).toBe(400); // (1000-200)/2
+      expect(result.width).toBe(200);
     });
   });
 });

@@ -142,9 +142,25 @@ export function flattenTree(result: LayoutResult): RenderItem[] {
 
 /**
  * Recursively collect render items from layout tree
+ * @param result - Layout result to process
+ * @param items - Array to collect render items into
+ * @param parentOffset - Accumulated offset from parent containers (for relative positioning)
  */
-function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
+function collectRenderItems(
+  result: LayoutResult,
+  items: RenderItem[],
+  parentOffset: { x: number; y: number } = { x: 0, y: 0 }
+): void {
   const node = result.node;
+
+  // Apply relative offset for positioning (offset is visual only, doesn't affect pagination)
+  // Accumulate parent offset + this node's relative offset
+  const thisOffset = {
+    x: parentOffset.x + (result.relativeOffset?.x ?? 0),
+    y: parentOffset.y + (result.relativeOffset?.y ?? 0),
+  };
+  const effectiveX = result.x + thisOffset.x;
+  const effectiveY = result.y + thisOffset.y;
 
   switch (node.type) {
     case 'text': {
@@ -152,10 +168,25 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
       const overflow = textNode.overflow ?? 'visible';
 
       // Determine the constraint width for truncation
-      // Use explicit width from node if it's a number, otherwise use layout result width
+      // Priority: renderConstraints.boundaryWidth > explicit node width > layout result width
       let constraintWidth = result.width;
-      if (typeof textNode.width === 'number') {
+      let boundaryWidth = result.width; // For alignment calculations
+
+      if (result.renderConstraints) {
+        // Use render constraints from grid cells for boundary enforcement
+        constraintWidth = result.renderConstraints.boundaryWidth;
+        boundaryWidth = result.renderConstraints.boundaryWidth;
+      } else if (typeof textNode.width === 'number') {
         constraintWidth = textNode.width;
+      }
+
+      // Subtract padding from constraint width if present
+      // This ensures text content area is correctly calculated
+      if (textNode.padding) {
+        const padding = typeof textNode.padding === 'number'
+          ? textNode.padding * 2
+          : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
+        constraintWidth = Math.max(0, constraintWidth - padding);
       }
 
       // Apply text truncation
@@ -194,26 +225,36 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
         }
       }
 
-      // Calculate X position based on cell alignment (if set)
-      // This is used by grid cells where alignment is deferred to render time
-      let renderX = result.x;
-      if (result.cellAlign && constraintWidth > 0) {
-        switch (result.cellAlign) {
+      // Calculate X position based on alignment
+      // Use renderConstraints.hAlign if available, otherwise fall back to cellAlign
+      let renderX = effectiveX;
+      const alignment = result.renderConstraints?.hAlign ?? result.cellAlign;
+      if (alignment && boundaryWidth > 0) {
+        switch (alignment) {
           case 'center':
-            renderX = result.x + Math.floor((constraintWidth - textWidth) / 2);
+            renderX = effectiveX + Math.floor((boundaryWidth - textWidth) / 2);
             break;
           case 'right':
-            renderX = result.x + constraintWidth - textWidth;
+            renderX = effectiveX + boundaryWidth - textWidth;
             break;
           // 'left' or undefined - no adjustment
         }
       }
 
+      // Enforce cell boundary: ensure text doesn't overflow cell right edge
+      // Critical for grid cells with zero/small column gaps to prevent overlap
+      // Use Math.floor to avoid sub-pixel rounding issues
+      const cellRightEdge = effectiveX + boundaryWidth;
+      const textRightEdge = renderX + textWidth;
+      if (textRightEdge > cellRightEdge + 1) { // 1-dot tolerance for rounding
+        renderX = Math.max(effectiveX, Math.floor(cellRightEdge - textWidth));
+      }
+
       items.push({
         type: 'text',
         x: renderX,
-        y: result.y,
-        width: result.width,
+        y: effectiveY,
+        width: boundaryWidth,
         height: result.height,
         style: result.style,
         data: {
@@ -230,8 +271,8 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
       const char = lineNode.char ?? (lineNode.direction === 'horizontal' ? '-' : '|');
       items.push({
         type: 'line',
-        x: result.x,
-        y: result.y,
+        x: effectiveX,
+        y: effectiveY,
         width: result.width,
         height: result.height,
         style: result.style,
@@ -243,9 +284,9 @@ function collectRenderItems(result: LayoutResult, items: RenderItem[]): void {
     case 'stack':
     case 'flex':
     case 'grid':
-      // Container nodes - recurse into children
+      // Container nodes - recurse into children, passing accumulated offset
       for (const child of result.children) {
-        collectRenderItems(child, items);
+        collectRenderItems(child, items, thisOffset);
       }
       break;
 

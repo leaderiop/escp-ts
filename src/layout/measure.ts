@@ -107,6 +107,8 @@ export interface MeasuredNode {
   fallbackMeasured?: MeasuredNode;
   /** For flex wrap: lines of wrapped children */
   flexLines?: FlexLine[];
+  /** Explicit width if specified (number or resolved percentage, not 'auto' or 'fill') */
+  explicitWidth?: number;
 }
 
 // ==================== HELPER FUNCTIONS ====================
@@ -275,6 +277,13 @@ function measureTextNode(
   preferredWidth = constrained.width;
   preferredHeight = constrained.height;
 
+  // Track explicit width if specified (number or resolved percentage)
+  let explicitWidth: number | undefined;
+  const widthSpec = resolveWidthSpec(node.width, ctx.availableWidth);
+  if (typeof widthSpec === 'number') {
+    explicitWidth = widthSpec;
+  }
+
   return {
     node,
     minContentWidth: textWidth,
@@ -285,6 +294,7 @@ function measureTextNode(
     margin,
     style,
     children: [],
+    ...(explicitWidth !== undefined && { explicitWidth }),
   };
 }
 
@@ -417,6 +427,9 @@ function measureStackNode(
   preferredWidth = constrained.width;
   preferredHeight = constrained.height;
 
+  // Track explicit width if specified (number or resolved percentage)
+  const explicitWidth = typeof widthSpec === 'number' ? widthSpec : undefined;
+
   return {
     node,
     minContentWidth,
@@ -427,6 +440,7 @@ function measureStackNode(
     margin,
     style,
     children: measuredChildren,
+    ...(explicitWidth !== undefined && { explicitWidth }),
   };
 }
 
@@ -446,7 +460,12 @@ function measureFlexNode(
   const shouldWrap = node.wrap === 'wrap';
 
   // Content area width (for wrapping calculations)
-  const contentAreaWidth = ctx.availableWidth - padding.left - padding.right - margin.left - margin.right;
+  // Use explicit width if flex container has one, otherwise use available width
+  const containerWidthSpec = resolveWidthSpec(node.width, ctx.availableWidth);
+  const containerBaseWidth = (containerWidthSpec === 'fill' || containerWidthSpec === 'auto')
+    ? ctx.availableWidth
+    : (typeof containerWidthSpec === 'number' ? containerWidthSpec : ctx.availableWidth);
+  const contentAreaWidth = containerBaseWidth - padding.left - padding.right - margin.left - margin.right;
 
   // Measure all children
   const childCtx: MeasureContext = {
@@ -540,6 +559,9 @@ function measureFlexNode(
   preferredWidth = constrained.width;
   preferredHeight = constrained.height;
 
+  // Track explicit width if specified (number or resolved percentage)
+  const explicitWidth = typeof widthSpec === 'number' ? widthSpec : undefined;
+
   return {
     node,
     minContentWidth,
@@ -551,6 +573,7 @@ function measureFlexNode(
     style,
     children: measuredChildren,
     ...(flexLines && { flexLines }),
+    ...(explicitWidth !== undefined && { explicitWidth }),
   };
 }
 
