@@ -168,30 +168,37 @@ function collectRenderItems(
       const overflow = textNode.overflow ?? 'visible';
 
       // Determine the constraint width for truncation
-      // Priority: renderConstraints.boundaryWidth > explicit node width > layout result width
-      let constraintWidth = result.width;
+      // Only apply constraints for explicit widths or grid cells, not auto-width text
+      let constraintWidth = 0; // No constraint by default for auto-width text
       let boundaryWidth = result.width; // For alignment calculations
 
       if (result.renderConstraints) {
         // Use render constraints from grid cells for boundary enforcement
         constraintWidth = result.renderConstraints.boundaryWidth;
         boundaryWidth = result.renderConstraints.boundaryWidth;
+
+        // Subtract padding from grid cell constraint
+        if (textNode.padding) {
+          const padding = typeof textNode.padding === 'number'
+            ? textNode.padding * 2
+            : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
+          constraintWidth = Math.max(0, constraintWidth - padding);
+        }
       } else if (typeof textNode.width === 'number') {
+        // Explicit width is a hard constraint
         constraintWidth = textNode.width;
-      }
 
-      // Subtract padding from constraint width if present
-      // This ensures text content area is correctly calculated
-      if (textNode.padding) {
-        const padding = typeof textNode.padding === 'number'
-          ? textNode.padding * 2
-          : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
-        constraintWidth = Math.max(0, constraintWidth - padding);
+        // Subtract padding from explicit width constraint
+        if (textNode.padding) {
+          const padding = typeof textNode.padding === 'number'
+            ? textNode.padding * 2
+            : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
+          constraintWidth = Math.max(0, constraintWidth - padding);
+        }
       }
+      // For auto-width text (no explicit width, no renderConstraints), constraintWidth stays 0
 
-      // Apply text truncation
-      // Always truncate if text exceeds constraint width, defaulting to 'clip'
-      // This ensures grid cell contents don't overflow into adjacent columns
+      // Apply text truncation only when there's an explicit constraint
       let content = textNode.content;
       let textWidth = 0;
 
@@ -206,10 +213,11 @@ function collectRenderItems(
         );
       }
 
-      // Truncate if text exceeds constraint
+      // Truncate only if there's an explicit constraint AND text exceeds it
       if (constraintWidth > 0 && textWidth > constraintWidth) {
-        // Use explicit overflow mode, or default to 'clip' for layout constraints
-        const effectiveOverflow = overflow === 'visible' ? 'clip' : overflow;
+        // For grid cells, default to 'clip' to prevent overflow into adjacent columns
+        // For explicit widths, respect the user's overflow setting
+        const effectiveOverflow = result.renderConstraints && overflow === 'visible' ? 'clip' : overflow;
         content = truncateText(content, constraintWidth, effectiveOverflow, result.style);
 
         // Recalculate text width after truncation

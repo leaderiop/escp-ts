@@ -1,12 +1,17 @@
 /**
- * QA Test 17: Flex Wrap Bug Verification
+ * QA Test 17: Flex Wrap Verification
  *
- * This test specifically targets BUG-003: Flex wrap not creating multiple rows.
+ * Demonstrates flex wrap behavior - items wrap to new rows when total width
+ * exceeds container width.
+ *
+ * KEY INSIGHT: Wrapping only occurs when content exceeds container width.
+ * Tests 2, 4, 5 use explicit .width() to constrain the container.
+ * Test 3 naturally wraps because 15 items exceed paper width.
  *
  * Expected behavior:
- * - When wrap='wrap' is set, items should flow to next line when container width is exceeded
- * - rowGap should create spacing between wrapped rows
- * - Each row should respect the justify setting
+ * - When wrap='wrap' is set, items flow to next line when container width is exceeded
+ * - rowGap creates spacing between wrapped rows
+ * - Each row respects the justify setting
  *
  * Run: npx tsx examples/qa-17-flex-wrap-bug.ts
  */
@@ -55,12 +60,13 @@ async function main() {
     )
     .spacer(20)
 
-    // Bug case: wrap enabled with items that should wrap
-    .text('BUG TEST: wrap=wrap (6 x 500 = 3000 dots)', { bold: true, underline: true })
-    .text('EXPECTED: Items should wrap to 2 rows (~2500 dots per row max)')
+    // Test 2: wrap enabled with constrained width to force wrapping
+    .text('TEST 2: wrap=wrap with width=2000 (6 x 500 = 3050 dots)', { bold: true, underline: true })
+    .text('EXPECTED: Items wrap to 2 rows (container 2000 dots < content 3050 dots)')
     .add(
       flex()
         .wrap('wrap')
+        .width(2000)
         .gap(10)
         .rowGap(20)
         .add(stack().width(500).text('[Item 1 - 500w]'))
@@ -72,9 +78,9 @@ async function main() {
     )
     .spacer(20)
 
-    // Smaller items that should definitely wrap
-    .text('BUG TEST: Many small items (15 x 400 = 6000 dots)', { bold: true, underline: true })
-    .text('EXPECTED: Should wrap to ~3 rows')
+    // Test 3: Many items that exceed full paper width (no explicit width needed)
+    .text('TEST 3: 15 items x 400 = 6140 dots (exceeds ~4840 paper width)', { bold: true, underline: true })
+    .text('EXPECTED: Wraps to 2 rows (11 items on row 1, 4 on row 2)')
     .add(
       flex()
         .wrap('wrap')
@@ -98,12 +104,13 @@ async function main() {
     )
     .spacer(20)
 
-    // Variable width items
-    .text('BUG TEST: Variable widths with wrap', { bold: true, underline: true })
-    .text('EXPECTED: Items wrap based on actual widths')
+    // Test 4: Variable width items with constrained container
+    .text('TEST 4: Variable widths with width=2500', { bold: true, underline: true })
+    .text('EXPECTED: Items wrap (total 3675 dots > container 2500 dots)')
     .add(
       flex()
         .wrap('wrap')
+        .width(2500)
         .gap(15)
         .rowGap(10)
         .add(stack().width(800).text('[Wide 800]'))
@@ -115,12 +122,13 @@ async function main() {
     )
     .spacer(20)
 
-    // Wrap with justify
-    .text('BUG TEST: Wrap + justify=space-between', { bold: true, underline: true })
-    .text('EXPECTED: Each row should have items at edges')
+    // Test 5: Wrap with justify and constrained width
+    .text('TEST 5: Wrap + justify=space-between with width=2000', { bold: true, underline: true })
+    .text('EXPECTED: Each row has items at edges (3000 dots > container 2000 dots)')
     .add(
       flex()
         .wrap('wrap')
+        .width(2000)
         .justify('space-between')
         .rowGap(20)
         .add(stack().width(600).text('[Row1-A]'))

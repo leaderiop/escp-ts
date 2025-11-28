@@ -309,12 +309,10 @@ function layoutStackNode(
   const baseWidth = hasExplicitWidth
     ? measured.preferredWidth - margin.left - margin.right
     : ctx.width - margin.left - margin.right;
-  const baseHeight = measured.preferredHeight - margin.top - margin.bottom;
 
   const contentX = ctx.x + margin.left + padding.left;
   const contentY = ctx.y + margin.top + padding.top;
   const contentWidth = baseWidth - padding.left - padding.right;
-  const contentHeight = baseHeight - padding.top - padding.bottom;
 
   const childResults: LayoutResult[] = [];
 
@@ -349,40 +347,36 @@ function layoutStackNode(
       });
 
       childResults.push(childResult);
-      currentY += childResult.height + childMeasured.margin.top + childMeasured.margin.bottom + gap;
+      // Only advance currentY for non-absolutely-positioned children
+      // Absolutely positioned elements don't affect normal document flow
+      if (!isAbsolutelyPositioned(childMeasured.node)) {
+        currentY += childResult.height + childMeasured.margin.top + childMeasured.margin.bottom + gap;
+      }
     }
   } else {
     // Horizontal stack (row)
     let currentX = contentX;
 
-    // For content-based alignment (not just box alignment), we need to account for padding differences
-    // This ensures visible content aligns, not just invisible box boundaries
-    const maxPaddingTop = Math.max(...measured.children.map((c) => c.padding.top));
-    const maxPaddingBottom = Math.max(...measured.children.map((c) => c.padding.bottom));
+    // Calculate row height from tallest child for proper vertical alignment
+    const rowHeight = Math.max(...measured.children.map((c) => c.preferredHeight));
 
     for (const childMeasured of measured.children) {
-      // Calculate Y offset based on vertical alignment
-      const yOffset = alignVertical(node.vAlign, childMeasured.preferredHeight, contentHeight);
-
-      // Additional offset to align visible content rather than box edges
-      // For TOP: children with less top padding need to move down to align their content tops
-      // For BOTTOM: children with less bottom padding need to move up to align their content bottoms
-      let contentAlignOffset = 0;
-      if (node.vAlign === 'top') {
-        contentAlignOffset = maxPaddingTop - childMeasured.padding.top;
-      } else if (node.vAlign === 'bottom') {
-        contentAlignOffset = -(maxPaddingBottom - childMeasured.padding.bottom);
-      }
+      // Calculate Y offset based on vertical alignment within the row height
+      // This aligns box edges (like CSS flexbox align-items)
+      const yOffset = alignVertical(node.vAlign, childMeasured.preferredHeight, rowHeight);
 
       const childResult = layoutNode(childMeasured, {
         x: currentX,
-        y: contentY + yOffset + contentAlignOffset,
+        y: contentY + yOffset,
         width: childMeasured.preferredWidth,
-        height: childMeasured.preferredHeight,  // Use child's own height, not container height
+        height: childMeasured.preferredHeight,
       });
 
       childResults.push(childResult);
-      currentX += childResult.width + childMeasured.margin.left + childMeasured.margin.right + gap;
+      // Only advance currentX for non-absolutely-positioned children
+      if (!isAbsolutelyPositioned(childMeasured.node)) {
+        currentX += childResult.width + childMeasured.margin.left + childMeasured.margin.right + gap;
+      }
     }
   }
 
