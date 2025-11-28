@@ -27,25 +27,25 @@ const TableRow: FunctionComponent<TableRowProps> = ({
   desc,
   price,
   total,
-  bold,
+  bold: isBold,
 }) => (
   <Flex style={{ gap: 20 }}>
     <Stack style={{ width: 80 }}>
-      <Text style={bold ? { bold: true } : undefined}>{qty}</Text>
+      <Text style={{ bold: isBold }}>{qty}</Text>
     </Stack>
     <Spacer style={{ width: 15 }} />
     <Stack>
-      <Text style={bold ? { bold: true } : undefined}>{desc}</Text>
+      <Text style={{ bold: isBold }}>{desc}</Text>
     </Stack>
     <Spacer />
     <Stack style={{ width: 120 }}>
-      <Text align="right" style={bold ? { bold: true } : undefined}>
+      <Text align="right" style={{ bold: isBold }}>
         {price}
       </Text>
     </Stack>
     <Spacer style={{ width: 200 }} />
     <Stack style={{ width: 120 }}>
-      <Text align="right" style={bold ? { bold: true } : undefined}>
+      <Text align="right" style={{ bold: isBold }}>
         {total}
       </Text>
     </Stack>

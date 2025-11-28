@@ -52,20 +52,22 @@ export interface NodeStyle {
 
   // Positioning
   position?: PositionMode;
+  posX?: number;
+  posY?: number;
   top?: number;
   left?: number;
   offsetX?: number;
   offsetY?: number;
 
   // Text styles (inherited)
-  bold?: boolean;
-  italic?: boolean;
-  underline?: boolean;
-  doubleStrike?: boolean;
-  doubleWidth?: boolean;
-  doubleHeight?: boolean;
-  condensed?: boolean;
-  cpi?: number;
+  bold?: boolean | undefined;
+  italic?: boolean | undefined;
+  underline?: boolean | undefined;
+  doubleStrike?: boolean | undefined;
+  doubleWidth?: boolean | undefined;
+  doubleHeight?: boolean | undefined;
+  condensed?: boolean | undefined;
+  cpi?: number | undefined;
 }
 
 // ==================== COMPONENT PROPS ====================

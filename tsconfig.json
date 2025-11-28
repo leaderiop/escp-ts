@@ -12,7 +12,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "resolveJsonModule": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -21,8 +21,12 @@
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "."
+    "jsxImportSource": "escp-ts",
+    "paths": {
+      "escp-ts/jsx-runtime": ["./src/jsx/jsx-runtime.ts"],
+      "escp-ts/jsx-dev-runtime": ["./src/jsx/jsx-dev-runtime.ts"]
+    }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "examples/**/*.tsx"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
 }

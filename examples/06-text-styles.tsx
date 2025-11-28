@@ -13,24 +13,8 @@
 
 import { LayoutEngine } from '../src/index';
 import { Stack, Text, Line, Spacer } from '../src/jsx';
-import type { FunctionComponent } from '../src/jsx';
 import type { LayoutNode } from '../src/index';
 import { renderPreview, DEFAULT_PAPER } from './_helpers';
-
-// Section header component
-interface SectionProps {
-  title: string;
-  children?: unknown;
-}
-
-const Section: FunctionComponent<SectionProps> = ({ title, children }) => (
-  <Stack>
-    <Text style={{ bold: true, underline: true }}>{title}</Text>
-    <Spacer style={{ height: 10 }} />
-    {children as LayoutNode[]}
-    <Spacer style={{ height: 20 }} />
-  </Stack>
-);
 
 async function main() {
   const engine = new LayoutEngine({

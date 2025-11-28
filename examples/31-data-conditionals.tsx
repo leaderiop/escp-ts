@@ -9,7 +9,7 @@
  * Run: npx tsx --tsconfig examples/tsconfig.json examples/31-data-conditionals.tsx
  */
 
-import { LayoutEngine, eq, gt, exists, empty } from '../src/index';
+import { LayoutEngine, gt, exists, empty } from '../src/index';
 import { Stack, Flex, Text, Line, Spacer, Template, If, Switch, Case } from '../src/jsx';
 import type { LayoutNode, DataContext } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
