@@ -240,6 +240,7 @@ export {
   initDefaultAdapter,
   getDefaultAdapter,
   resetDefaultAdapter,
+  type YogaAdapterOptions,
   type YogaLayoutOptions,
   type YogaLayoutContext,
   type NodeMapping,
@@ -293,6 +294,45 @@ export {
   type VirtualPage,
   type VirtualRenderOptions,
 } from './renderer/VirtualRenderer';
+
+// JSX Runtime
+export {
+  createElement,
+  Fragment,
+  jsx,
+  jsxs,
+  jsxDEV,
+  // Component functions for JSX usage
+  Stack as JStack,
+  Flex as JFlex,
+  Text as JText,
+  Spacer as JSpacer,
+  Line as JLine,
+  Template as JTemplate,
+  If as JIf,
+  Switch as JSwitch,
+  Case as JCase,
+  For as JFor,
+  Layout as JLayout,
+} from './jsx';
+
+export type {
+  NodeStyle,
+  StackProps,
+  FlexProps,
+  TextProps,
+  SpacerProps,
+  LineProps,
+  TemplateProps,
+  IfProps,
+  SwitchProps,
+  CaseProps,
+  ForProps,
+  LayoutProps,
+  FunctionComponent,
+  JSXChild,
+  JSXChildren,
+} from './jsx';
 
 // Default export
 export { LayoutEngine as default } from './layout/LayoutEngine';

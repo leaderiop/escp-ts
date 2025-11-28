@@ -18,6 +18,7 @@ export {
   initDefaultAdapter,
   getDefaultAdapter,
   resetDefaultAdapter,
+  type YogaAdapterOptions,
   type YogaLayoutOptions,
 } from './YogaAdapter';
 

@@ -7,7 +7,7 @@
  */
 
 import { FlexDirection, Gutter } from 'yoga-layout/load';
-import type { Node as YogaNode, Yoga } from 'yoga-layout/load';
+import type { Node as YogaNode, Yoga, Config } from 'yoga-layout/load';
 import type {
   LayoutNode,
   StackNode,
@@ -43,12 +43,14 @@ import { createTextMeasureFunc, createLineMeasureFunc } from './TextMeasurer';
  * @param Yoga - The Yoga module instance
  * @param node - The escp-ts layout node to convert
  * @param ctx - Layout context with available space and style
+ * @param config - Optional Yoga config for node creation (enables pointScaleFactor, etc.)
  * @returns NodeMapping containing the Yoga node and metadata
  */
 export function buildYogaTree(
   Yoga: Yoga,
   node: LayoutNode,
-  ctx: YogaLayoutContext
+  ctx: YogaLayoutContext,
+  config?: Config
 ): NodeMapping {
   // Resolve style by inheriting from parent
   // Check for any style property on the node
@@ -64,8 +66,8 @@ export function buildYogaTree(
     style: resolvedStyle,
   };
 
-  // Create Yoga node
-  const yogaNode = Yoga.Node.create();
+  // Create Yoga node with config if provided (for pointScaleFactor, etc.)
+  const yogaNode = config ? Yoga.Node.create(config) : Yoga.Node.create();
 
   // Apply common properties (width, height, padding, margin, position, constraints)
   const padding = applyPadding(yogaNode, (node as LayoutNodeBase).padding);
@@ -88,11 +90,11 @@ export function buildYogaTree(
   // Handle specific node types
   switch (node.type) {
     case 'stack':
-      buildStackNode(Yoga, yogaNode, node, mapping, childCtx);
+      buildStackNode(Yoga, yogaNode, node, mapping, childCtx, config);
       break;
 
     case 'flex':
-      buildFlexNode(Yoga, yogaNode, node, mapping, childCtx);
+      buildFlexNode(Yoga, yogaNode, node, mapping, childCtx, config);
       break;
 
     case 'text':
@@ -124,9 +126,14 @@ function buildStackNode(
   yogaNode: YogaNode,
   node: StackNode,
   mapping: NodeMapping,
-  ctx: YogaLayoutContext
+  ctx: YogaLayoutContext,
+  config?: Config
 ): void {
   const direction = node.direction ?? 'column';
+
+  // Mark container as always forming a containing block for absolute children
+  // This ensures absolute positioned children are relative to this container
+  yogaNode.setAlwaysFormsContainingBlock(true);
 
   // Configure flex container properties
   applyFlexDirection(yogaNode, direction);
@@ -152,7 +159,7 @@ function buildStackNode(
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     if (!child) continue; // Skip undefined children
-    const childMapping = buildYogaTree(Yoga, child, ctx);
+    const childMapping = buildYogaTree(Yoga, child, ctx, config);
     yogaNode.insertChild(childMapping.yogaNode, i);
     mapping.children.push(childMapping);
   }
@@ -166,8 +173,13 @@ function buildFlexNode(
   yogaNode: YogaNode,
   node: FlexNode,
   mapping: NodeMapping,
-  ctx: YogaLayoutContext
+  ctx: YogaLayoutContext,
+  config?: Config
 ): void {
+  // Mark container as always forming a containing block for absolute children
+  // This ensures absolute positioned children are relative to this container
+  yogaNode.setAlwaysFormsContainingBlock(true);
+
   // Flex is always row direction
   yogaNode.setFlexDirection(FlexDirection.Row);
 
@@ -186,7 +198,7 @@ function buildFlexNode(
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     if (!child) continue; // Skip undefined children
-    const childMapping = buildYogaTree(Yoga, child, ctx);
+    const childMapping = buildYogaTree(Yoga, child, ctx, config);
     yogaNode.insertChild(childMapping.yogaNode, i);
     mapping.children.push(childMapping);
   }

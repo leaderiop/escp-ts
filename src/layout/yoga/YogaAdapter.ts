@@ -27,13 +27,26 @@
  */
 
 import { loadYoga } from 'yoga-layout/load';
-import type { Yoga } from 'yoga-layout/load';
+import type { Yoga, Config } from 'yoga-layout/load';
 import type { LayoutNode } from '../nodes';
 import { DEFAULT_STYLE, type ResolvedStyle } from '../nodes';
 import type { LayoutResult } from './types';
 import type { YogaLayoutContext } from './types';
 import { buildYogaTree, freeYogaTree } from './YogaNodeBuilder';
 import { extractLayoutResult } from './YogaResultExtractor';
+
+/**
+ * Options for configuring the YogaAdapter
+ */
+export interface YogaAdapterOptions {
+  /**
+   * Point scale factor for pixel grid rounding.
+   * - Set to 1 (default) for precise dot positioning (ideal for printers)
+   * - Set to 0 to disable pixel grid rounding
+   * - Set to display density for screen rendering
+   */
+  pointScaleFactor?: number;
+}
 
 /**
  * Options for Yoga layout calculation
@@ -63,7 +76,21 @@ export interface YogaLayoutOptions {
  */
 export class YogaAdapter {
   private yoga: Yoga | null = null;
+  private config: Config | null = null;
   private initialized = false;
+  private readonly options: Required<YogaAdapterOptions>;
+
+  /**
+   * Create a new YogaAdapter
+   *
+   * @param options - Configuration options for the adapter
+   */
+  constructor(options: YogaAdapterOptions = {}) {
+    this.options = {
+      pointScaleFactor: 1, // Precise dot positioning for printers
+      ...options,
+    };
+  }
 
   /**
    * Initialize the Yoga module
@@ -79,6 +106,11 @@ export class YogaAdapter {
     }
 
     this.yoga = await loadYoga();
+
+    // Create shared config with printer-optimized settings
+    this.config = this.yoga.Config.create();
+    this.config.setPointScaleFactor(this.options.pointScaleFactor);
+
     this.initialized = true;
   }
 
@@ -86,11 +118,17 @@ export class YogaAdapter {
    * Initialize with an existing Yoga instance
    *
    * Use this if you've already loaded Yoga elsewhere in your application.
+   * Note: When using this method, a default config will be created.
    *
    * @param yoga - Pre-loaded Yoga module instance
    */
   initWithYoga(yoga: Yoga): void {
     this.yoga = yoga;
+
+    // Create config with the pre-loaded Yoga instance
+    this.config = yoga.Config.create();
+    this.config.setPointScaleFactor(this.options.pointScaleFactor);
+
     this.initialized = true;
   }
 
@@ -111,6 +149,13 @@ export class YogaAdapter {
       );
     }
     return this.yoga;
+  }
+
+  /**
+   * Get the Yoga config (may be null if not initialized)
+   */
+  getConfig(): Config | null {
+    return this.config;
   }
 
   /**
@@ -149,8 +194,8 @@ export class YogaAdapter {
       style: options.style ?? DEFAULT_STYLE,
     };
 
-    // Build Yoga tree
-    const mapping = buildYogaTree(Yoga, node, ctx);
+    // Build Yoga tree with config for proper node configuration
+    const mapping = buildYogaTree(Yoga, node, ctx, this.config ?? undefined);
 
     // Calculate layout with Yoga
     mapping.yogaNode.calculateLayout(
@@ -190,12 +235,15 @@ export class YogaAdapter {
   /**
    * Dispose of resources
    *
-   * Currently a no-op as Yoga uses WASM and doesn't need explicit cleanup,
-   * but provided for future compatibility.
+   * Frees the Yoga config to prevent memory leaks.
+   * After calling dispose(), the adapter cannot be used until re-initialized.
    */
   dispose(): void {
-    // Yoga WASM doesn't need explicit disposal
-    // This method exists for API completeness
+    if (this.config) {
+      this.config.free();
+      this.config = null;
+    }
+    this.initialized = false;
   }
 }
 
@@ -204,6 +252,7 @@ export class YogaAdapter {
  *
  * Convenience function for creating an initialized adapter.
  *
+ * @param options - Configuration options for the adapter
  * @returns Promise<YogaAdapter> initialized adapter instance
  *
  * @example
@@ -212,8 +261,8 @@ export class YogaAdapter {
  * const result = adapter.calculateLayout(node, options);
  * ```
  */
-export async function createYogaAdapter(): Promise<YogaAdapter> {
-  const adapter = new YogaAdapter();
+export async function createYogaAdapter(options?: YogaAdapterOptions): Promise<YogaAdapter> {
+  const adapter = new YogaAdapter(options);
   await adapter.init();
   return adapter;
 }
@@ -281,7 +330,12 @@ export function getDefaultAdapter(): YogaAdapter {
 
 /**
  * Reset the default adapter (for testing)
+ *
+ * Disposes the current default adapter and clears the reference.
  */
 export function resetDefaultAdapter(): void {
-  defaultAdapter = null;
+  if (defaultAdapter) {
+    defaultAdapter.dispose();
+    defaultAdapter = null;
+  }
 }

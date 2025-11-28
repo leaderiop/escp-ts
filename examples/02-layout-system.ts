@@ -45,12 +45,13 @@ async function main() {
     .build();
 
   // Example 3: Table Layout using nested flex rows
-  // Helper to create a table row
+  // Helper to create a table row - use spacer for flexible space
   const tableRow = (qty: string, desc: string, price: string, total: string, opts?: { bold?: boolean }) =>
     flex()
       .gap(20)
       .add(stack().width(80).text(qty, opts))
-      .add(stack().grow(1).text(desc, opts))
+      .add(stack().text(desc, opts)) // Description takes natural width
+      .add(spacer()) // Flexible spacer fills remaining space
       .add(stack().width(120).text(price, { ...opts, align: 'right' }))
       .add(stack().width(120).text(total, { ...opts, align: 'right' }))
       .build();
