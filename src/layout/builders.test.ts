@@ -2,15 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   StackBuilder,
   FlexBuilder,
-  GridBuilder,
   stack,
   flex,
-  grid,
   text,
   spacer,
   line,
-  spaceQuery,
 } from './builders';
+import type { SpaceQuery } from './nodes';
 
 describe('builders', () => {
   // ==================== STACK BUILDER ====================
@@ -142,14 +140,6 @@ describe('builders', () => {
       expect(node.children[0].type).toBe('flex');
     });
 
-    it('supports nested grid via callback', () => {
-      const node = stack()
-        .grid([100, 100], (b) => b.cell('A').cell('B').row())
-        .build();
-      expect(node.children.length).toBe(1);
-      expect(node.children[0].type).toBe('grid');
-    });
-
     it('chains multiple methods', () => {
       const node = stack()
         .direction('column')
@@ -193,7 +183,7 @@ describe('builders', () => {
     });
 
     it('sets when condition with SpaceQuery', () => {
-      const query = spaceQuery({ minWidth: 500, maxHeight: 1000 });
+      const query: SpaceQuery = { minWidth: 500, maxHeight: 1000 };
       const node = stack().when(query).build();
       expect(node.when).toEqual(query);
     });
@@ -287,137 +277,8 @@ describe('builders', () => {
       const node = flex()
         .stack((b) => b.text('Line 1').text('Line 2'))
         .flex((b) => b.text('A').text('B'))
-        .grid([100], (b) => b.cell('X').row())
         .build();
-      expect(node.children.length).toBe(3);
-    });
-  });
-
-  // ==================== GRID BUILDER ====================
-
-  describe('GridBuilder', () => {
-    it('creates a grid with columns', () => {
-      const node = grid([100, 200, 'fill']).build();
-      expect(node.type).toBe('grid');
-      expect(node.columns).toEqual([100, 200, 'fill']);
-      expect(node.rows).toEqual([]);
-    });
-
-    it('sets column and row gaps', () => {
-      const node = grid([100]).columnGap(10).rowGap(5).build();
-      expect(node.columnGap).toBe(10);
-      expect(node.rowGap).toBe(5);
-    });
-
-    it('sets dimensions', () => {
-      const node = grid([100]).width(300).height('auto').build();
-      expect(node.width).toBe(300);
-      expect(node.height).toBe('auto');
-    });
-
-    it('sets padding', () => {
-      const node = grid([100]).padding(15).build();
-      expect(node.padding).toBe(15);
-    });
-
-    it('sets margin', () => {
-      const node = grid([100]).margin(25).build();
-      expect(node.margin).toBe(25);
-    });
-
-    it('sets style properties', () => {
-      const node = grid([100]).bold().italic().underline().cpi(12).build();
-      expect(node.bold).toBe(true);
-      expect(node.italic).toBe(true);
-      expect(node.underline).toBe(true);
-      expect(node.cpi).toBe(12);
-    });
-
-    it('creates rows with cells', () => {
-      const node = grid([100, 200])
-        .cell('A')
-        .cell('B')
-        .row()
-        .cell('C')
-        .cell('D')
-        .row()
-        .build();
-      expect(node.rows.length).toBe(2);
-      expect(node.rows[0].cells.length).toBe(2);
-      expect(node.rows[1].cells.length).toBe(2);
-    });
-
-    it('creates text cells from strings', () => {
-      const node = grid([100]).cell('Test').row().build();
-      expect(node.rows[0].cells[0]).toEqual({ type: 'text', content: 'Test', align: undefined });
-    });
-
-    it('accepts nodes as cells', () => {
-      const textNode = text('Custom');
-      const node = grid([100]).cell(textNode).row().build();
-      expect(node.rows[0].cells[0]).toEqual(textNode);
-    });
-
-    it('accepts builders as cells', () => {
-      const stackNode = stack().text('Inner');
-      const node = grid([100]).cell(stackNode).row().build();
-      expect(node.rows[0].cells[0].type).toBe('stack');
-    });
-
-    it('applies cell options', () => {
-      const node = grid([100]).cell('Test', { bold: true, align: 'right' }).row().build();
-      const cell = node.rows[0].cells[0];
-      expect(cell.type).toBe('text');
-      if (cell.type === 'text') {
-        expect(cell.bold).toBe(true);
-        expect(cell.align).toBe('right');
-      }
-    });
-
-    it('creates header rows', () => {
-      const node = grid([100, 200])
-        .cell('Header1')
-        .cell('Header2')
-        .headerRow()
-        .cell('Data1')
-        .cell('Data2')
-        .row()
-        .build();
-      expect(node.rows[0].isHeader).toBe(true);
-      expect(node.rows[1].isHeader).toBe(false);
-    });
-
-    it('sets row height', () => {
-      const node = grid([100]).cell('Test').row(50).build();
-      expect(node.rows[0].height).toBe(50);
-    });
-
-    it('applies row styles', () => {
-      const node = grid([100]).rowStyle({ bold: true, italic: true }).cell('Test').row().build();
-      expect(node.rows[0].bold).toBe(true);
-      expect(node.rows[0].italic).toBe(true);
-    });
-
-    it('auto-finalizes pending row on build', () => {
-      const node = grid([100]).cell('A').cell('B').build();
-      expect(node.rows.length).toBe(1);
-    });
-
-    it('does not create empty rows', () => {
-      const node = grid([100]).row().row().build();
-      expect(node.rows.length).toBe(0);
-    });
-
-    it('supports colSpan option', () => {
-      const node = grid([100, 100, 100])
-        .cell('Spans two columns', { colSpan: 2 })
-        .cell('Single')
-        .row()
-        .build();
-      // The cell should have colSpan set
-      const firstCell = node.rows[0]?.cells[0];
-      expect(firstCell).toBeDefined();
-      expect((firstCell as { colSpan?: number }).colSpan).toBe(2);
+      expect(node.children.length).toBe(2);
     });
   });
 
@@ -433,12 +294,6 @@ describe('builders', () => {
     describe('flex()', () => {
       it('returns a FlexBuilder', () => {
         expect(flex()).toBeInstanceOf(FlexBuilder);
-      });
-    });
-
-    describe('grid()', () => {
-      it('returns a GridBuilder', () => {
-        expect(grid([100])).toBeInstanceOf(GridBuilder);
       });
     });
 
@@ -504,49 +359,19 @@ describe('builders', () => {
       });
     });
 
-    describe('spaceQuery()', () => {
-      it('creates a SpaceQuery object with all options', () => {
-        const query = spaceQuery({ minWidth: 500, maxWidth: 1000, minHeight: 200, maxHeight: 800 });
-        expect(query.minWidth).toBe(500);
-        expect(query.maxWidth).toBe(1000);
-        expect(query.minHeight).toBe(200);
-        expect(query.maxHeight).toBe(800);
-      });
-
-      it('creates a SpaceQuery with partial options', () => {
-        const query = spaceQuery({ minWidth: 300 });
-        expect(query.minWidth).toBe(300);
-        expect(query.maxWidth).toBeUndefined();
-        expect(query.minHeight).toBeUndefined();
-        expect(query.maxHeight).toBeUndefined();
-      });
-    });
   });
 
   // ==================== INTEGRATION TESTS ====================
 
   describe('integration', () => {
-    it('builds a complete receipt-like layout', () => {
+    it('builds a complete receipt-like layout using flex', () => {
       const receipt = stack()
         .align('center')
         .text('STORE NAME', { bold: true, doubleWidth: true })
         .text('123 Main Street')
         .line('-', 'fill')
-        .add(
-          grid([200, 'fill', 100])
-            .cell('Qty')
-            .cell('Item')
-            .cell('Price')
-            .headerRow()
-            .cell('2')
-            .cell('Widget')
-            .cell('$10.00')
-            .row()
-            .cell('1')
-            .cell('Gadget')
-            .cell('$25.00')
-            .row()
-        )
+        .add(flex().justify('space-between').text('Widget x 2').text('$10.00'))
+        .add(flex().justify('space-between').text('Gadget x 1').text('$25.00'))
         .line('-', 'fill')
         .add(flex().justify('space-between').text('Total:').text('$45.00', { bold: true }))
         .spacer(20)
@@ -555,7 +380,7 @@ describe('builders', () => {
 
       expect(receipt.type).toBe('stack');
       expect(receipt.align).toBe('center');
-      expect(receipt.children.length).toBe(8);
+      expect(receipt.children.length).toBe(9);
     });
 
     it('builds a form-like layout', () => {

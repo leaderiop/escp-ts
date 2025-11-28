@@ -3,13 +3,13 @@
  *
  * Demonstrates percentage-based width and height specifications:
  * - '50%': Takes 50% of available width/height
- * - Works with stack, flex, and grid containers
+ * - Works with stack and flex containers
  * - Useful for responsive layouts
  *
  * Run: npx tsx examples/14-percentages.ts
  */
 
-import { LayoutEngine, stack, flex, grid, text, line } from '../src/index';
+import { LayoutEngine, stack, flex, line } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 async function main() {
@@ -20,6 +20,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(20)
@@ -107,47 +108,60 @@ async function main() {
     )
     .spacer(30)
 
-    // Grid with percentage columns
-    .text('GRID WITH PERCENTAGE COLUMNS', { bold: true, underline: true })
+    // Table with percentage columns (using flex)
+    .text('TABLE WITH PERCENTAGE COLUMNS', { bold: true, underline: true })
     .spacer(10)
-    .text('Grid columns: 20%, 50%, 30%:')
+    .text('Columns: 20%, 50%, 30%:')
     .spacer(10)
     .add(
-      grid(['20%', '50%', '30%'])
-        .columnGap(10)
-        .rowGap(5)
-        .cell('20%', { bold: true, align: 'center' })
-        .cell('50%', { bold: true, align: 'center' })
-        .cell('30%', { bold: true, align: 'center' })
-        .headerRow()
-        .cell('Col A')
-        .cell('Column B (wider)')
-        .cell('Col C')
-        .row()
-        .cell('Data')
-        .cell('More data in the middle')
-        .cell('End')
-        .row()
+      stack()
+        .gap(5)
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width('20%').text('20%', { bold: true, align: 'center' }))
+            .add(stack().width('50%').text('50%', { bold: true, align: 'center' }))
+            .add(stack().width('30%').text('30%', { bold: true, align: 'center' }))
+        )
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width('20%').text('Col A'))
+            .add(stack().width('50%').text('Column B (wider)'))
+            .add(stack().width('30%').text('Col C'))
+        )
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width('20%').text('Data'))
+            .add(stack().width('50%').text('More data in the middle'))
+            .add(stack().width('30%').text('End'))
+        )
     )
     .spacer(30)
 
     // Combining percentages with fixed sizes
     .text('MIXED SIZING', { bold: true, underline: true })
     .spacer(10)
-    .text('Grid with fixed (100px) + percentage (50%) + fill:')
+    .text('Fixed (100px) + percentage (50%) + fill:')
     .spacer(10)
     .add(
-      grid([100, '50%', 'fill'])
-        .columnGap(10)
-        .rowGap(5)
-        .cell('100px', { bold: true })
-        .cell('50%', { bold: true })
-        .cell('Fill', { bold: true })
-        .headerRow()
-        .cell('Fixed')
-        .cell('Half of available')
-        .cell('Remaining space')
-        .row()
+      stack()
+        .gap(5)
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width(100).text('100px', { bold: true }))
+            .add(stack().width('50%').text('50%', { bold: true }))
+            .add(stack().grow(1).text('Fill', { bold: true }))
+        )
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width(100).text('Fixed'))
+            .add(stack().width('50%').text('Half of available'))
+            .add(stack().grow(1).text('Remaining space'))
+        )
     )
     .spacer(30)
 

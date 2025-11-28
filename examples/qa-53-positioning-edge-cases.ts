@@ -15,7 +15,7 @@
  * Run: npx tsx examples/qa-53-positioning-edge-cases.ts
  */
 
-import { LayoutEngine, stack, flex, grid, text } from "../src/index";
+import { LayoutEngine, stack, flex, text } from "../src/index";
 import { renderPreview, DEFAULT_PAPER, printSection } from "./_helpers";
 
 async function main() {
@@ -26,6 +26,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(10)

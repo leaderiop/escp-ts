@@ -14,6 +14,7 @@ async function main() {
 
   const engine = new LayoutEngine({ defaultPaper: DEFAULT_PAPER });
   engine.initialize();
+  await engine.initYoga();
 
   // Simple flex with two stacks - should be side by side
   const layout = flex()

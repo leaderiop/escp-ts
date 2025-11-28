@@ -20,6 +20,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   // Helper to create test items with different heights
   const createItems = () => [

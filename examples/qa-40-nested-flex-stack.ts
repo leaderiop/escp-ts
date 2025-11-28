@@ -22,6 +22,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(25)
@@ -142,38 +143,9 @@ async function main() {
     )
     .spacer(15)
 
-    // Test 4: Triple nested flex with wrapping
-    .text('TEST 4: Nested flex with wrap at different levels', { bold: true, underline: true })
-    .add(
-      flex()  // Outer flex: no wrap
-        .gap(20)
-        .add(
-          flex()  // Inner flex: wrap
-            .wrap('wrap')
-            .width(800)
-            .gap(10)
-            .rowGap(10)
-            .add(stack().width(200).padding(5).text('[W1]'))
-            .add(stack().width(200).padding(5).text('[W2]'))
-            .add(stack().width(200).padding(5).text('[W3]'))
-            .add(stack().width(200).padding(5).text('[W4]'))
-            .add(stack().width(200).padding(5).text('[W5]'))
-        )
-        .add(
-          flex()  // Another inner flex: wrap
-            .wrap('wrap')
-            .width(600)
-            .gap(10)
-            .rowGap(10)
-            .add(stack().width(150).padding(5).text('[X1]'))
-            .add(stack().width(150).padding(5).text('[X2]'))
-            .add(stack().width(150).padding(5).text('[X3]'))
-            .add(stack().width(150).padding(5).text('[X4]'))
-        )
-    )
-    .spacer(15)
+    // NOTE: Test 4 (nested flex with wrap) removed - flex-wrap no longer supported
 
-    // Test 5: Stack inside flex inside stack inside flex
+    // Test 4: Stack inside flex inside stack inside flex
     .text('TEST 5: Complex nesting pattern', { bold: true, underline: true })
     .add(
       flex()  // L1: Flex

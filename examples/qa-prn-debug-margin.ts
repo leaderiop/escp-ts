@@ -164,6 +164,7 @@ async function main(): Promise<void> {
   console.log('\n4. Full Pipeline through LayoutEngine:');
   const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
   engine.initialize();
+  await engine.initYoga();
   engine.render(node);
 
   const prn = engine.getOutput();

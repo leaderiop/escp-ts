@@ -13,7 +13,7 @@
  * Run: npx tsx examples/22-international-charsets.ts
  */
 
-import { LayoutEngine, PRINT_QUALITY, INTERNATIONAL_CHARSET, stack, grid, line } from '../src/index';
+import { LayoutEngine, PRINT_QUALITY, INTERNATIONAL_CHARSET, stack, line } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 async function main() {
@@ -24,6 +24,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
   engine.setQuality(PRINT_QUALITY.LQ);
 
   const layout = stack()

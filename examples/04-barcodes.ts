@@ -16,6 +16,7 @@ async function main() {
     defaultPaper: DEFAULT_PAPER,
   });
   engine.initialize();
+  await engine.initYoga();
 
   // Print title
   engine.setBold(true).println('Barcode Examples').setBold(false);

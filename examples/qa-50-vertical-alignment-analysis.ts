@@ -12,7 +12,7 @@
  *   - This offset should appear as ESC J before positioning that item
  */
 
-import { LayoutEngine, stack, flex, grid, text } from '../src/index';
+import { LayoutEngine, stack, flex, text } from '../src/index';
 import { printSection } from './_helpers';
 
 const ZERO_MARGIN_PAPER = {
@@ -142,6 +142,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     // Items with different heights (due to padding)
     // Item 1: padding=10 -> adds 20 to height (10 top + 10 bottom)
@@ -173,6 +174,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     // Same layout but with vAlign=center
     // Row height = max(80, 140, 80) = 140
@@ -207,6 +209,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     // With vAlign=bottom:
     // Item A offset: 140-80 = 60 dots
@@ -240,6 +243,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     // Explicit heights make calculation easier:
     // Row height = 100

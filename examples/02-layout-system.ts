@@ -1,12 +1,12 @@
 /**
  * Example 02: Layout System
  *
- * Demonstrates the virtual DOM layout system with stack, flex, and grid layouts.
+ * Demonstrates the virtual DOM layout system with stack and flex layouts.
  *
  * Run: npx tsx examples/02-layout-system.ts
  */
 
-import { LayoutEngine, stack, flex, grid, spacer, line } from '../src/index';
+import { LayoutEngine, stack, flex, spacer, line } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 async function main() {
@@ -16,6 +16,7 @@ async function main() {
     defaultPaper: DEFAULT_PAPER,
   });
   engine.initialize();
+  await engine.initYoga();
 
   // Example 1: Stack Layout (vertical arrangement)
   const header = stack()
@@ -43,20 +44,26 @@ async function main() {
     )
     .build();
 
-  // Example 3: Grid Layout (table structure)
-  const itemsTable = grid([80, 'fill', 120, 120]) // Column widths: 80, flexible, 120, 120
-    .columnGap(20)
-    .rowGap(8)
+  // Example 3: Table Layout using nested flex rows
+  // Helper to create a table row
+  const tableRow = (qty: string, desc: string, price: string, total: string, opts?: { bold?: boolean }) =>
+    flex()
+      .gap(20)
+      .add(stack().width(80).text(qty, opts))
+      .add(stack().grow(1).text(desc, opts))
+      .add(stack().width(120).text(price, { ...opts, align: 'right' }))
+      .add(stack().width(120).text(total, { ...opts, align: 'right' }))
+      .build();
+
+  const itemsTable = stack()
+    .gap(8)
     // Header row
-    .cell('Qty', { bold: true })
-    .cell('Description', { bold: true })
-    .cell('Price', { bold: true, align: 'right' })
-    .cell('Total', { bold: true, align: 'right' })
-    .headerRow()
+    .add(tableRow('Qty', 'Description', 'Price', 'Total', { bold: true }))
+    .add(line('-', 'fill'))
     // Data rows
-    .cell('2').cell('Widget A').cell('$10.00', { align: 'right' }).cell('$20.00', { align: 'right' }).row()
-    .cell('5').cell('Widget B (Premium)').cell('$15.00', { align: 'right' }).cell('$75.00', { align: 'right' }).row()
-    .cell('1').cell('Widget C').cell('$25.00', { align: 'right' }).cell('$25.00', { align: 'right' }).row()
+    .add(tableRow('2', 'Widget A', '$10.00', '$20.00'))
+    .add(tableRow('5', 'Widget B (Premium)', '$15.00', '$75.00'))
+    .add(tableRow('1', 'Widget C', '$25.00', '$25.00'))
     .build();
 
   // Example 4: Nested Layouts

@@ -6,7 +6,7 @@
  * optimal print head movement, and emits commands.
  */
 
-import type { LayoutResult } from './layout';
+import type { LayoutResult } from './yoga';
 import type { TextNode, LineNode, ResolvedStyle, TextOrientation, TextOverflow } from './nodes';
 import { CommandBuilder } from '../commands/CommandBuilder';
 import { encodeText, getCharacterWidth } from '../fonts/CharacterSet';
@@ -168,23 +168,11 @@ function collectRenderItems(
       const overflow = textNode.overflow ?? 'visible';
 
       // Determine the constraint width for truncation
-      // Only apply constraints for explicit widths or grid cells, not auto-width text
+      // Only apply constraints for explicit widths, not auto-width text
       let constraintWidth = 0; // No constraint by default for auto-width text
-      let boundaryWidth = result.width; // For alignment calculations
+      const boundaryWidth = result.width; // For alignment calculations
 
-      if (result.renderConstraints) {
-        // Use render constraints from grid cells for boundary enforcement
-        constraintWidth = result.renderConstraints.boundaryWidth;
-        boundaryWidth = result.renderConstraints.boundaryWidth;
-
-        // Subtract padding from grid cell constraint
-        if (textNode.padding) {
-          const padding = typeof textNode.padding === 'number'
-            ? textNode.padding * 2
-            : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
-          constraintWidth = Math.max(0, constraintWidth - padding);
-        }
-      } else if (typeof textNode.width === 'number') {
+      if (typeof textNode.width === 'number') {
         // Explicit width is a hard constraint
         constraintWidth = textNode.width;
 
@@ -196,7 +184,6 @@ function collectRenderItems(
           constraintWidth = Math.max(0, constraintWidth - padding);
         }
       }
-      // For auto-width text (no explicit width, no renderConstraints), constraintWidth stays 0
 
       // Apply text truncation only when there's an explicit constraint
       let content = textNode.content;
@@ -215,10 +202,7 @@ function collectRenderItems(
 
       // Truncate only if there's an explicit constraint AND text exceeds it
       if (constraintWidth > 0 && textWidth > constraintWidth) {
-        // For grid cells, default to 'clip' to prevent overflow into adjacent columns
-        // For explicit widths, respect the user's overflow setting
-        const effectiveOverflow = result.renderConstraints && overflow === 'visible' ? 'clip' : overflow;
-        content = truncateText(content, constraintWidth, effectiveOverflow, result.style);
+        content = truncateText(content, constraintWidth, overflow, result.style);
 
         // Recalculate text width after truncation
         textWidth = 0;
@@ -234,9 +218,8 @@ function collectRenderItems(
       }
 
       // Calculate X position based on alignment
-      // Use renderConstraints.hAlign if available, otherwise fall back to cellAlign
       let renderX = effectiveX;
-      const alignment = result.renderConstraints?.hAlign ?? result.cellAlign;
+      const alignment = textNode.align;
       if (alignment && boundaryWidth > 0) {
         switch (alignment) {
           case 'center':
@@ -247,15 +230,6 @@ function collectRenderItems(
             break;
           // 'left' or undefined - no adjustment
         }
-      }
-
-      // Enforce cell boundary: ensure text doesn't overflow cell right edge
-      // Critical for grid cells with zero/small column gaps to prevent overlap
-      // Use Math.floor to avoid sub-pixel rounding issues
-      const cellRightEdge = effectiveX + boundaryWidth;
-      const textRightEdge = renderX + textWidth;
-      if (textRightEdge > cellRightEdge + 1) { // 1-dot tolerance for rounding
-        renderX = Math.max(effectiveX, Math.floor(cellRightEdge - textWidth));
       }
 
       items.push({
@@ -291,7 +265,6 @@ function collectRenderItems(
 
     case 'stack':
     case 'flex':
-    case 'grid':
       // Container nodes - recurse into children, passing accumulated offset
       for (const child of result.children) {
         collectRenderItems(child, items, thisOffset);
@@ -477,7 +450,7 @@ function renderTextItem(ctx: RenderContext, item: RenderItem): void {
 
   // Update X position after printing
   // Calculate actual text width to track printer head position accurately
-  // This is critical for grid columns with small/zero gaps
+  // This is critical for table columns with small/zero gaps
   let actualTextWidth = 0;
   for (const char of item.data.content) {
     actualTextWidth += getCharacterWidth(

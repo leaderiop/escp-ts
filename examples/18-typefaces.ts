@@ -28,6 +28,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
   engine.setQuality(PRINT_QUALITY.LQ); // LQ mode for best typeface rendering
 
   // Sample text for each typeface

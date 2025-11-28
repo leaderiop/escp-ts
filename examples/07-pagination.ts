@@ -1,120 +1,99 @@
 /**
- * Example 07: Pagination
+ * Example 07: Multi-Page Documents
  *
- * Demonstrates pagination features:
- * - breakBefore: Force page break before element
- * - breakAfter: Force page break after element
- * - keepTogether: Keep element and children on same page
- * - keepWithNext: Keep grid row with next row
- * - Multi-page document handling
+ * Demonstrates multi-page document handling:
+ * - Documents that span multiple pages
+ * - Content flow across pages
+ * - Table structures using flex layouts
+ *
+ * Note: Pagination hints (breakBefore, breakAfter, keepTogether)
+ * have been removed as they are incompatible with Yoga layout.
  *
  * Run: npx tsx examples/07-pagination.ts
  */
 
-import { LayoutEngine, stack, grid, text, line } from '../src/index';
+import { LayoutEngine, stack, flex, line } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 async function main() {
-  printSection('Pagination Demo');
+  printSection('Multi-Page Document Demo');
 
   const engine = new LayoutEngine({
     defaultPaper: DEFAULT_PAPER,
   });
 
   engine.initialize();
+  await engine.initYoga();
 
-  // Build a multi-page document with pagination hints
+  // Helper to create a table row
+  const tableRow = (item: string, desc: string, amount: string, opts?: { bold?: boolean }) =>
+    flex()
+      .gap(20)
+      .add(stack().width(200).text(item, opts))
+      .add(stack().width(200).text(desc, opts))
+      .add(stack().width(150).text(amount, { ...opts, align: 'right' }))
+      .build();
+
+  // Build a multi-page document
   const layout = stack()
     .gap(15)
     .padding(30)
 
     // Page 1: Introduction
     .text('PAGE 1: INTRODUCTION', { bold: true, doubleWidth: true })
-    .line('=', 'fill')
-    .spacer(20)
-    .text('This document demonstrates pagination features.')
+    .add(line('=', 'fill'))
+    .add(stack().height(20))
+    .text('This document demonstrates multi-page document handling.')
     .text('Content will automatically flow across multiple pages.')
-    .spacer(20)
-    .text('The following section will force a page break before it.')
-    .spacer(30)
+    .add(stack().height(20))
+    .text('The layout system handles content distribution.')
+    .add(stack().height(30))
 
-    // Force page break before this section
+    // Section 2: Content
+    .text('CONTENT SECTION', { bold: true, doubleWidth: true })
+    .add(line('=', 'fill'))
+    .add(stack().height(20))
+    .text('This section contains structured content.')
+    .text('Use stack and flex layouts to organize content.')
+    .add(stack().height(30))
+
+    // Grouped section
+    .text('GROUPED SECTION', { bold: true })
+    .add(line('-', 'fill'))
+    .text('Line 1 of grouped content')
+    .text('Line 2 of grouped content')
+    .text('Line 3 of grouped content')
+    .text('Line 4 of grouped content')
+    .text('Content is organized using stack layouts.')
+    .add(line('-', 'fill'))
+    .add(stack().height(30))
+
+    // Table using flex rows
+    .text('TABLE EXAMPLE', { bold: true })
+    .text('Tables are created using nested flex layouts.', { italic: true })
+    .add(stack().height(10))
     .add(
       stack()
-        .breakBefore() // <-- This forces a new page
-        .text('PAGE 2: BREAK BEFORE', { bold: true, doubleWidth: true })
-        .line('=', 'fill')
-        .spacer(20)
-        .text('This section started on a new page due to breakBefore().')
-        .text('Use breakBefore() for chapter headings, sections, etc.')
+        .gap(5)
+        .add(tableRow('Item', 'Description', 'Amount', { bold: true }))
+        .add(line('-', 'fill'))
+        .add(tableRow('Product A', 'Widget', '$100.00'))
+        .add(tableRow('Product B', 'Gadget', '$250.00'))
+        .add(tableRow('Product C', 'Gizmo', '$75.00'))
+        .add(line('-', 'fill'))
+        .add(tableRow('', 'Subtotal', '$425.00', { bold: true }))
+        .add(tableRow('', 'Tax (10%)', '$42.50', { bold: true }))
+        .add(line('=', 'fill'))
+        .add(tableRow('', 'TOTAL', '$467.50', { bold: true }))
     )
-    .spacer(30)
+    .add(stack().height(30))
 
-    // Section with keepTogether
-    .add(
-      stack()
-        .keepTogether() // <-- Keep this entire section on same page
-        .text('GROUPED SECTION (keepTogether)', { bold: true })
-        .line('-', 'fill')
-        .text('Line 1 of grouped content')
-        .text('Line 2 of grouped content')
-        .text('Line 3 of grouped content')
-        .text('Line 4 of grouped content')
-        .text('All these lines stay together on the same page.')
-        .line('-', 'fill')
-    )
-    .spacer(30)
-
-    // Table with keepWithNext
-    .text('TABLE WITH keepWithNext', { bold: true })
-    .text('The subtotal row stays with the total row.', { italic: true })
-    .spacer(10)
-    .add(
-      grid([200, 200, 150])
-        .columnGap(20)
-        .rowGap(5)
-        .cell('Item', { bold: true })
-        .cell('Description', { bold: true })
-        .cell('Amount', { bold: true, align: 'right' })
-        .headerRow()
-        .cell('Product A')
-        .cell('Widget')
-        .cell('$100.00', { align: 'right' })
-        .row()
-        .cell('Product B')
-        .cell('Gadget')
-        .cell('$250.00', { align: 'right' })
-        .row()
-        .cell('Product C')
-        .cell('Gizmo')
-        .cell('$75.00', { align: 'right' })
-        .row()
-        .keepWithNext() // Keep subtotal with total
-        .cell('')
-        .cell('Subtotal', { bold: true })
-        .cell('$425.00', { bold: true, align: 'right' })
-        .row()
-        .cell('')
-        .cell('Tax (10%)', { bold: true })
-        .cell('$42.50', { bold: true, align: 'right' })
-        .row()
-    )
-    .spacer(30)
-
-    // Force page break after this section
-    .add(
-      stack()
-        .breakAfter() // <-- Force page break after
-        .text('END OF CONTENT SECTION', { bold: true })
-        .text('A page break will occur after this section.')
-    )
-
-    // Final page
-    .text('FINAL PAGE', { bold: true, doubleWidth: true })
-    .line('=', 'fill')
-    .text('This content appears on a new page due to breakAfter() above.')
-    .spacer(30)
-    .text('End of Document', { align: 'center', italic: true })
+    // Final section
+    .text('FINAL SECTION', { bold: true, doubleWidth: true })
+    .add(line('=', 'fill'))
+    .text('This demonstrates a complete multi-section document.')
+    .add(stack().height(30))
+    .text('End of Document', { italic: true })
     .build();
 
   // Render the layout
@@ -122,7 +101,7 @@ async function main() {
 
   // Get output and show preview
   const commands = engine.getOutput();
-  await renderPreview(commands, 'Pagination Demo', '07-pagination');
+  await renderPreview(commands, 'Multi-Page Document Demo', '07-pagination');
 }
 
 main().catch(console.error);

@@ -22,6 +22,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(25)
@@ -193,49 +194,9 @@ async function main() {
     )
     .spacer(15)
 
-    // Test 6: Nested flex with wrap enabled
-    .text('TEST 6: Nested flex with wrap in inner container', { bold: true, underline: true })
-    .add(
-      flex()
-        .justify('start')
-        .gap(30)
-        .add(
-          stack()
-            .width(700)
-            .padding(10)
-            .text('Outer container')
-            .add(
-              flex()
-                .wrap('wrap')
-                .gap(10)
-                .rowGap(10)
-                .add(stack().width(150).padding(5).text('[W1]'))
-                .add(stack().width(150).padding(5).text('[W2]'))
-                .add(stack().width(150).padding(5).text('[W3]'))
-                .add(stack().width(150).padding(5).text('[W4]'))
-                .add(stack().width(150).padding(5).text('[W5]'))
-            )
-        )
-        .add(
-          stack()
-            .width(700)
-            .padding(10)
-            .text('Second outer')
-            .add(
-              flex()
-                .wrap('wrap')
-                .justify('center')
-                .gap(10)
-                .rowGap(10)
-                .add(stack().width(200).padding(5).text('[C1]'))
-                .add(stack().width(200).padding(5).text('[C2]'))
-                .add(stack().width(200).padding(5).text('[C3]'))
-            )
-        )
-    )
-    .spacer(15)
+    // NOTE: Test 6 (nested flex with wrap) removed - flex-wrap no longer supported
 
-    // Test 7: Single-child nested flex
+    // Test 6: Single-child nested flex
     .text('TEST 7: Single-child nested flex (edge case)', { bold: true, underline: true })
     .add(
       flex()

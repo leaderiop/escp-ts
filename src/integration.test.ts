@@ -4,13 +4,11 @@ import {
   CommandBuilder,
   stack,
   flex,
-  grid,
   text,
   spacer,
   line,
   VirtualRenderer,
   ASCII,
-  TYPEFACE,
   PRINT_QUALITY,
 } from './index';
 
@@ -76,8 +74,9 @@ describe('Integration: Full Document Pipeline', () => {
   });
 
   describe('Layout System Integration', () => {
-    it('should render a stack layout correctly', () => {
+    it('should render a stack layout correctly', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = stack()
@@ -94,8 +93,9 @@ describe('Integration: Full Document Pipeline', () => {
       expect(output.length).toBeGreaterThan(10);
     });
 
-    it('should render a flex layout with space-between', () => {
+    it('should render a flex layout with space-between', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = flex()
@@ -109,22 +109,9 @@ describe('Integration: Full Document Pipeline', () => {
       expect(output.length).toBeGreaterThan(10);
     });
 
-    it('should render a grid layout', () => {
+    it('should handle nested layouts', async () => {
       const engine = new LayoutEngine();
-      engine.initialize();
-
-      const layout = grid([100, 'fill', 100])
-        .cell('A').cell('B').cell('C').row()
-        .cell('1').cell('2').cell('3').row()
-        .build();
-
-      engine.render(layout);
-      const output = engine.getOutput();
-      expect(output.length).toBeGreaterThan(10);
-    });
-
-    it('should handle nested layouts', () => {
-      const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const innerFlex = flex()
@@ -143,8 +130,9 @@ describe('Integration: Full Document Pipeline', () => {
       expect(output.length).toBeGreaterThan(10);
     });
 
-    it('should handle deeply nested layouts (5+ levels)', () => {
+    it('should handle deeply nested layouts (5+ levels)', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       // Build a deeply nested structure
@@ -213,8 +201,9 @@ describe('Integration: Full Document Pipeline', () => {
   });
 
   describe('Virtual Renderer Integration', () => {
-    it('should render ESC/P2 commands to virtual pages', () => {
+    it('should render ESC/P2 commands to virtual pages', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = stack()
@@ -235,8 +224,9 @@ describe('Integration: Full Document Pipeline', () => {
       expect(pages[0].data.length).toBeGreaterThan(0);
     });
 
-    it('should handle multi-line content', () => {
+    it('should handle multi-line content', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = stack()
@@ -321,8 +311,9 @@ describe('Integration: Full Document Pipeline', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle empty layouts', () => {
+    it('should handle empty layouts', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const emptyStack = stack().build();
@@ -337,16 +328,18 @@ describe('Integration: Full Document Pipeline', () => {
       expect(() => engine.print('')).not.toThrow();
     });
 
-    it('should handle single character text', () => {
+    it('should handle single character text', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = text('X');
       expect(() => engine.render(layout)).not.toThrow();
     });
 
-    it('should handle very long text', () => {
+    it('should handle very long text', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const longText = 'A'.repeat(1000);
@@ -354,8 +347,9 @@ describe('Integration: Full Document Pipeline', () => {
       expect(() => engine.render(layout)).not.toThrow();
     });
 
-    it('should handle mixed content types', () => {
+    it('should handle mixed content types', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = stack()

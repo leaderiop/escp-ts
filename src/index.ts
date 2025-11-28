@@ -137,8 +137,6 @@ export type {
   LayoutNode,
   StackNode,
   FlexNode,
-  GridNode,
-  GridRowNode,
   TextNode,
   SpacerNode,
   LineNode,
@@ -154,7 +152,6 @@ export type {
   ResolvedStyle,
   ResolvedPadding,
   ResolvedMargin,
-  PageBreakHints,
   // Advanced layout types
   SpaceContext,
   SpaceQuery,
@@ -162,7 +159,8 @@ export type {
   PositionMode,
   TextOrientation,
   TextOverflow,
-  FlexWrap,
+  // NOTE: FlexWrap was removed - incompatible with printer pagination
+  // NOTE: Grid was removed - not natively supported by Yoga
   // Template/Component system types
   DataContext,
   DataCondition,
@@ -184,7 +182,6 @@ export {
   isContainerNode,
   isStackNode,
   isFlexNode,
-  isGridNode,
   isTextNode,
   isSpacerNode,
   isLineNode,
@@ -201,14 +198,11 @@ export {
 export {
   StackBuilder,
   FlexBuilder,
-  GridBuilder,
   stack,
   flex,
-  grid,
   text,
   spacer,
   line,
-  spaceQuery,
   // Template/Component builders
   TemplateBuilder,
   ConditionalBuilder,
@@ -219,25 +213,13 @@ export {
   switchOn,
   each,
   type TextOptions,
-  type CellOptions,
 } from './layout/builders';
 
-// Layout system - Measure phase
-export {
-  measureNode,
-  DEFAULT_MEASURE_CONTEXT,
-  type MeasuredNode,
-  type MeasureContext,
-  type FlexLine,
-} from './layout/measure';
-
-// Layout system - Layout phase
-export {
-  layoutNode,
-  performLayout,
-  type LayoutResult,
-  type LayoutContext,
-} from './layout/layout';
+// Layout system - Layout result types (from Yoga adapter)
+export type {
+  LayoutResult,
+  LayoutContext,
+} from './layout/yoga';
 
 // Layout system - Renderer
 export {
@@ -250,14 +232,18 @@ export {
   type RenderOptions,
 } from './layout/renderer';
 
-// Layout system - Pagination
+// Layout system - Yoga Adapter (Flexbox layout engine)
 export {
-  paginateLayout,
-  createPageConfig,
-  type PageConfig,
-  type PageSegment,
-  type PaginatedLayoutResult,
-} from './layout/pagination';
+  YogaAdapter,
+  createYogaAdapter,
+  calculateYogaLayout,
+  initDefaultAdapter,
+  getDefaultAdapter,
+  resetDefaultAdapter,
+  type YogaLayoutOptions,
+  type YogaLayoutContext,
+  type NodeMapping,
+} from './layout/yoga';
 
 // Layout system - Template Interpolation
 export {

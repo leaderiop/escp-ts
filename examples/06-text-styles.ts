@@ -20,6 +20,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   // Build the layout demonstrating all text styles
   const layout = stack()

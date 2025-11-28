@@ -23,6 +23,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   // Set global data context
   engine.setData({

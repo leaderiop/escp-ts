@@ -17,6 +17,7 @@ async function main() {
     defaultPaper: DEFAULT_PAPER,
   });
   engine.initialize();
+  await engine.initYoga();
 
   const document = stack()
     .gap(15)

@@ -19,6 +19,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
   engine.setQuality(PRINT_QUALITY.LQ);
 
   const layout = stack()

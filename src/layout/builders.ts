@@ -2,7 +2,7 @@
  * Fluent Builder Classes for ESC/P2 Layout System
  *
  * These builders provide a fluent API for constructing virtual layout trees.
- * Each builder creates a specific type of layout node (Stack, Flex, Grid)
+ * Each builder creates a specific type of layout node (Stack, Flex)
  * and allows method chaining for configuration.
  */
 
@@ -10,8 +10,6 @@ import type {
   LayoutNode,
   StackNode,
   FlexNode,
-  GridNode,
-  GridRowNode,
   TextNode,
   SpacerNode,
   LineNode,
@@ -29,10 +27,8 @@ import type {
   StyleProps,
   PositionMode,
   ContentCondition,
-  SpaceQuery,
   TextOrientation,
   TextOverflow,
-  FlexWrap,
   DataCondition,
   DataContext,
   ContentResolver,
@@ -52,18 +48,6 @@ export interface TextOptions extends StyleProps {
   orientation?: TextOrientation;
   /** Overflow behavior: 'visible' (default), 'clip', or 'ellipsis' */
   overflow?: TextOverflow;
-}
-
-/**
- * Options for grid cells
- */
-export interface CellOptions extends StyleProps {
-  /** Horizontal alignment within cell */
-  align?: HAlign;
-  /** Vertical alignment within cell */
-  vAlign?: VAlign;
-  /** Column span (default: 1) */
-  colSpan?: number;
 }
 
 // ==================== STACK BUILDER ====================
@@ -178,38 +162,6 @@ export class StackBuilder {
     return this;
   }
 
-  // === PAGINATION HINTS ===
-
-  /** Force a page break before this stack */
-  breakBefore(on: boolean = true): this {
-    this.node.breakBefore = on;
-    return this;
-  }
-
-  /** Force a page break after this stack */
-  breakAfter(on: boolean = true): this {
-    this.node.breakAfter = on;
-    return this;
-  }
-
-  /** Keep this stack and its children on the same page if possible */
-  keepTogether(on: boolean = true): this {
-    this.node.keepTogether = on;
-    return this;
-  }
-
-  /** Minimum number of children before allowing a page break (orphan control) */
-  minBeforeBreak(count: number): this {
-    this.node.minBeforeBreak = count;
-    return this;
-  }
-
-  /** Minimum number of children after a page break (widow control) */
-  minAfterBreak(count: number): this {
-    this.node.minAfterBreak = count;
-    return this;
-  }
-
   // === SIZE CONSTRAINTS ===
 
   /** Set minimum width in dots */
@@ -256,7 +208,18 @@ export class StackBuilder {
     return this;
   }
 
-  /** Set absolute position (shorthand for position('absolute') + posX + posY) */
+  /**
+   * Set absolute position (shorthand for position('absolute') + posX + posY)
+   *
+   * **PRINTER WARNING - USE WITH CAUTION**:
+   * - Coordinates are relative to parent container, NOT page origin
+   * - May create overlapping content which is unreadable on printed paper
+   * - Absolute items are removed from document flow, affecting sibling layout
+   * - Pagination may not correctly handle absolute positioned items
+   *
+   * For small visual adjustments, consider `relativePosition()` instead,
+   * which keeps the element in document flow.
+   */
   absolutePosition(x: number, y: number): this {
     this.node.position = 'absolute';
     this.node.posX = x;
@@ -264,7 +227,19 @@ export class StackBuilder {
     return this;
   }
 
-  /** Set relative position with offsets (element stays in flow but rendered offset) */
+  /**
+   * Set relative position with offsets (element stays in flow but rendered offset)
+   *
+   * **RECOMMENDED** for printer output. The element remains in document flow
+   * (siblings are not affected) but is rendered at an offset from its calculated position.
+   * This is safer than absolutePosition() for printer layouts.
+   *
+   * @example
+   * ```typescript
+   * // Nudge text down by 5 dots for visual alignment
+   * text('Subscript').relativePosition(0, 5)
+   * ```
+   */
   relativePosition(offsetX: number, offsetY: number): this {
     this.node.position = 'relative';
     this.node.offsetX = offsetX;
@@ -281,8 +256,8 @@ export class StackBuilder {
   }
 
   /** Set fallback node to show when condition is false */
-  fallback(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+  fallback(node: LayoutNode | StackBuilder | FlexBuilder): this {
+    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder
       ? node.build()
       : node;
     return this;
@@ -347,8 +322,8 @@ export class StackBuilder {
   }
 
   /** Add any layout node or builder as a child */
-  add(child: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    if (child instanceof StackBuilder || child instanceof FlexBuilder || child instanceof GridBuilder) {
+  add(child: LayoutNode | StackBuilder | FlexBuilder): this {
+    if (child instanceof StackBuilder || child instanceof FlexBuilder) {
       this.node.children.push(child.build());
     } else {
       this.node.children.push(child);
@@ -372,14 +347,6 @@ export class StackBuilder {
   /** Add a nested flex using a configure callback */
   flex(configure: (builder: FlexBuilder) => void): this {
     const builder = new FlexBuilder();
-    configure(builder);
-    this.node.children.push(builder.build());
-    return this;
-  }
-
-  /** Add a nested grid using a configure callback */
-  grid(columns: WidthSpec[], configure: (builder: GridBuilder) => void): this {
-    const builder = new GridBuilder(columns);
     configure(builder);
     this.node.children.push(builder.build());
     return this;
@@ -433,17 +400,8 @@ export class FlexBuilder {
     return this;
   }
 
-  /** Set wrap mode: 'nowrap' (default) or 'wrap' */
-  wrap(mode: FlexWrap): this {
-    this.node.wrap = mode;
-    return this;
-  }
-
-  /** Set gap between rows when wrapping (in dots) */
-  rowGap(dots: number): this {
-    this.node.rowGap = dots;
-    return this;
-  }
+  // NOTE: wrap() and rowGap() were removed because flex-wrap is incompatible
+  // with printer pagination. Use Stack for multi-line layouts.
 
   /** Set width */
   width(w: WidthSpec): this {
@@ -507,26 +465,6 @@ export class FlexBuilder {
     return this;
   }
 
-  // === PAGINATION HINTS ===
-
-  /** Force a page break before this flex container */
-  breakBefore(on: boolean = true): this {
-    this.node.breakBefore = on;
-    return this;
-  }
-
-  /** Force a page break after this flex container */
-  breakAfter(on: boolean = true): this {
-    this.node.breakAfter = on;
-    return this;
-  }
-
-  /** Keep this flex container and its children on the same page if possible */
-  keepTogether(on: boolean = true): this {
-    this.node.keepTogether = on;
-    return this;
-  }
-
   // === SIZE CONSTRAINTS ===
 
   /** Set minimum width in dots */
@@ -573,7 +511,18 @@ export class FlexBuilder {
     return this;
   }
 
-  /** Set absolute position (shorthand for position('absolute') + posX + posY) */
+  /**
+   * Set absolute position (shorthand for position('absolute') + posX + posY)
+   *
+   * **PRINTER WARNING - USE WITH CAUTION**:
+   * - Coordinates are relative to parent container, NOT page origin
+   * - May create overlapping content which is unreadable on printed paper
+   * - Absolute items are removed from document flow, affecting sibling layout
+   * - Pagination may not correctly handle absolute positioned items
+   *
+   * For small visual adjustments, consider `relativePosition()` instead,
+   * which keeps the element in document flow.
+   */
   absolutePosition(x: number, y: number): this {
     this.node.position = 'absolute';
     this.node.posX = x;
@@ -581,7 +530,19 @@ export class FlexBuilder {
     return this;
   }
 
-  /** Set relative position with offsets (element stays in flow but rendered offset) */
+  /**
+   * Set relative position with offsets (element stays in flow but rendered offset)
+   *
+   * **RECOMMENDED** for printer output. The element remains in document flow
+   * (siblings are not affected) but is rendered at an offset from its calculated position.
+   * This is safer than absolutePosition() for printer layouts.
+   *
+   * @example
+   * ```typescript
+   * // Nudge text down by 5 dots for visual alignment
+   * text('Subscript').relativePosition(0, 5)
+   * ```
+   */
   relativePosition(offsetX: number, offsetY: number): this {
     this.node.position = 'relative';
     this.node.offsetX = offsetX;
@@ -598,8 +559,8 @@ export class FlexBuilder {
   }
 
   /** Set fallback node to show when condition is false */
-  fallback(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+  fallback(node: LayoutNode | StackBuilder | FlexBuilder): this {
+    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder
       ? node.build()
       : node;
     return this;
@@ -654,8 +615,8 @@ export class FlexBuilder {
   }
 
   /** Add any layout node or builder as a child */
-  add(child: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    if (child instanceof StackBuilder || child instanceof FlexBuilder || child instanceof GridBuilder) {
+  add(child: LayoutNode | StackBuilder | FlexBuilder): this {
+    if (child instanceof StackBuilder || child instanceof FlexBuilder) {
       this.node.children.push(child.build());
     } else {
       this.node.children.push(child);
@@ -684,298 +645,8 @@ export class FlexBuilder {
     return this;
   }
 
-  /** Add a nested grid using a configure callback */
-  grid(columns: WidthSpec[], configure: (builder: GridBuilder) => void): this {
-    const builder = new GridBuilder(columns);
-    configure(builder);
-    this.node.children.push(builder.build());
-    return this;
-  }
-
   /** Build and return the flex node */
   build(): FlexNode {
-    return this.node;
-  }
-}
-
-// ==================== GRID BUILDER ====================
-
-/**
- * Builder for Grid layout nodes (table-like)
- *
- * Grid arranges children in a table with defined columns and rows.
- *
- * @example
- * ```typescript
- * grid([200, 'fill', 150])
- *   .columnGap(10)
- *   .rowGap(5)
- *   .cell('Qty', { bold: true }).cell('Item', { bold: true }).cell('Price', { bold: true }).row()
- *   .cell('5').cell('Widget A').cell('$10.00', { align: 'right' }).row()
- *   .build()
- * ```
- */
-export class GridBuilder {
-  private node: GridNode;
-  private currentRow: LayoutNode[] = [];
-  private currentRowStyle: StyleProps = {};
-  private isHeaderRow: boolean = false;
-  private currentRowKeepWithNext: boolean = false;
-  private currentRowBreakBefore: boolean = false;
-
-  constructor(columns: WidthSpec[]) {
-    this.node = {
-      type: 'grid',
-      columns,
-      rows: [],
-    };
-  }
-
-  // === LAYOUT CONFIGURATION ===
-
-  /** Set gap between columns (in dots) */
-  columnGap(dots: number): this {
-    this.node.columnGap = dots;
-    return this;
-  }
-
-  /** Set gap between rows (in dots) */
-  rowGap(dots: number): this {
-    this.node.rowGap = dots;
-    return this;
-  }
-
-  /** Set default overflow behavior for cells: 'visible', 'clip' (default), or 'ellipsis' */
-  cellOverflow(overflow: TextOverflow): this {
-    this.node.cellOverflow = overflow;
-    return this;
-  }
-
-  /** Set width */
-  width(w: WidthSpec): this {
-    this.node.width = w;
-    return this;
-  }
-
-  /** Set height */
-  height(h: HeightSpec): this {
-    this.node.height = h;
-    return this;
-  }
-
-  /** Set padding */
-  padding(p: PaddingSpec): this {
-    this.node.padding = p;
-    return this;
-  }
-
-  /** Set margin */
-  margin(m: MarginSpec): this {
-    this.node.margin = m;
-    return this;
-  }
-
-  // === STYLE CONFIGURATION (inherited by children) ===
-
-  /** Set bold style (inherited) */
-  bold(on: boolean = true): this {
-    this.node.bold = on;
-    return this;
-  }
-
-  /** Set italic style (inherited) */
-  italic(on: boolean = true): this {
-    this.node.italic = on;
-    return this;
-  }
-
-  /** Set underline style (inherited) */
-  underline(on: boolean = true): this {
-    this.node.underline = on;
-    return this;
-  }
-
-  /** Set CPI (inherited) */
-  cpi(value: number): this {
-    this.node.cpi = value;
-    return this;
-  }
-
-  // === PAGINATION HINTS (Grid-level) ===
-
-  /** Force a page break before this grid */
-  breakBefore(on: boolean = true): this {
-    this.node.breakBefore = on;
-    return this;
-  }
-
-  /** Force a page break after this grid */
-  breakAfter(on: boolean = true): this {
-    this.node.breakAfter = on;
-    return this;
-  }
-
-  /** Keep this entire grid on the same page if possible */
-  keepTogether(on: boolean = true): this {
-    this.node.keepTogether = on;
-    return this;
-  }
-
-  // === SIZE CONSTRAINTS ===
-
-  /** Set minimum width in dots */
-  minWidth(dots: number): this {
-    this.node.minWidth = dots;
-    return this;
-  }
-
-  /** Set maximum width in dots */
-  maxWidth(dots: number): this {
-    this.node.maxWidth = dots;
-    return this;
-  }
-
-  /** Set minimum height in dots */
-  minHeight(dots: number): this {
-    this.node.minHeight = dots;
-    return this;
-  }
-
-  /** Set maximum height in dots */
-  maxHeight(dots: number): this {
-    this.node.maxHeight = dots;
-    return this;
-  }
-
-  // === POSITIONING ===
-
-  /** Set positioning mode: 'static' (default) or 'absolute' */
-  position(mode: PositionMode): this {
-    this.node.position = mode;
-    return this;
-  }
-
-  /** Set absolute X position in dots */
-  posX(dots: number): this {
-    this.node.posX = dots;
-    return this;
-  }
-
-  /** Set absolute Y position in dots */
-  posY(dots: number): this {
-    this.node.posY = dots;
-    return this;
-  }
-
-  /** Set absolute position (shorthand for position('absolute') + posX + posY) */
-  absolutePosition(x: number, y: number): this {
-    this.node.position = 'absolute';
-    this.node.posX = x;
-    this.node.posY = y;
-    return this;
-  }
-
-  /** Set relative position with offsets (element stays in flow but rendered offset) */
-  relativePosition(offsetX: number, offsetY: number): this {
-    this.node.position = 'relative';
-    this.node.offsetX = offsetX;
-    this.node.offsetY = offsetY;
-    return this;
-  }
-
-  // === CONDITIONAL CONTENT ===
-
-  /** Set condition for showing this node */
-  when(condition: ContentCondition): this {
-    this.node.when = condition;
-    return this;
-  }
-
-  /** Set fallback node to show when condition is false */
-  fallback(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.fallback = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
-      ? node.build()
-      : node;
-    return this;
-  }
-
-  // === PAGINATION HINTS (Row-level) ===
-
-  /** Keep the current row with the next row on the same page */
-  keepWithNext(): this {
-    this.currentRowKeepWithNext = true;
-    return this;
-  }
-
-  /** Force a page break before the current row */
-  rowBreakBefore(): this {
-    this.currentRowBreakBefore = true;
-    return this;
-  }
-
-  // === ROW/CELL BUILDING ===
-
-  /** Add a cell to the current row - accepts string, node, or builder */
-  cell(content: string | LayoutNode | StackBuilder | FlexBuilder | GridBuilder, opts?: CellOptions): this {
-    let cellNode: LayoutNode;
-
-    if (typeof content === 'string') {
-      cellNode = {
-        type: 'text',
-        content,
-        align: opts?.align,
-        ...opts,
-      } as TextNode;
-    } else if (content instanceof StackBuilder || content instanceof FlexBuilder || content instanceof GridBuilder) {
-      cellNode = content.build();
-    } else {
-      cellNode = content;
-    }
-
-    this.currentRow.push(cellNode);
-    return this;
-  }
-
-  /** End current row and start a new one */
-  row(height?: number): this {
-    if (this.currentRow.length > 0) {
-      const rowNode: GridRowNode = {
-        cells: this.currentRow,
-        height,
-        isHeader: this.isHeaderRow,
-        keepWithNext: this.currentRowKeepWithNext || undefined,
-        breakBefore: this.currentRowBreakBefore || undefined,
-        ...this.currentRowStyle,
-      };
-      this.node.rows.push(rowNode);
-      // Reset row state
-      this.currentRow = [];
-      this.currentRowStyle = {};
-      this.isHeaderRow = false;
-      this.currentRowKeepWithNext = false;
-      this.currentRowBreakBefore = false;
-    }
-    return this;
-  }
-
-  /** Mark the current row as a header row and end it */
-  headerRow(height?: number): this {
-    this.isHeaderRow = true;
-    return this.row(height);
-  }
-
-  /** Set styles for the current row being built */
-  rowStyle(style: StyleProps): this {
-    this.currentRowStyle = { ...this.currentRowStyle, ...style };
-    return this;
-  }
-
-  /** Build and return the grid node */
-  build(): GridNode {
-    // Finalize any pending row
-    if (this.currentRow.length > 0) {
-      this.row();
-    }
     return this.node;
   }
 }
@@ -1012,22 +683,6 @@ export function stack(): StackBuilder {
  */
 export function flex(): FlexBuilder {
   return new FlexBuilder();
-}
-
-/**
- * Create a new grid builder with specified column widths
- *
- * @param columns - Array of column width specifications
- *
- * @example
- * ```typescript
- * grid([200, 'fill', 150])
- *   .cell('A').cell('B').cell('C').row()
- *   .build()
- * ```
- */
-export function grid(columns: WidthSpec[]): GridBuilder {
-  return new GridBuilder(columns);
 }
 
 /**
@@ -1080,22 +735,6 @@ export function line(char: string = '-', length?: number | 'fill'): LineNode {
     char,
     length,
   };
-}
-
-/**
- * Create a declarative space query for conditional content
- *
- * @example
- * ```typescript
- * // Show content only if at least 200 dots of height available
- * stack()
- *   .when(spaceQuery({ minHeight: 200 }))
- *   .text('This requires 200 dots of height')
- *   .build()
- * ```
- */
-export function spaceQuery(query: SpaceQuery): SpaceQuery {
-  return query;
 }
 
 // ==================== TEMPLATE BUILDER ====================
@@ -1235,8 +874,8 @@ export class ConditionalBuilder {
   }
 
   /** Set the node to render when condition is true */
-  then(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.then = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+  then(node: LayoutNode | StackBuilder | FlexBuilder): this {
+    this.node.then = node instanceof StackBuilder || node instanceof FlexBuilder
       ? node.build()
       : node;
     return this;
@@ -1245,14 +884,14 @@ export class ConditionalBuilder {
   /** Add an else-if branch */
   elseIf(
     condition: DataCondition | ((ctx: DataContext) => boolean),
-    thenNode: LayoutNode | StackBuilder | FlexBuilder | GridBuilder
+    thenNode: LayoutNode | StackBuilder | FlexBuilder
   ): this {
     if (!this.node.elseIf) {
       this.node.elseIf = [];
     }
     this.node.elseIf.push({
       condition,
-      then: thenNode instanceof StackBuilder || thenNode instanceof FlexBuilder || thenNode instanceof GridBuilder
+      then: thenNode instanceof StackBuilder || thenNode instanceof FlexBuilder
         ? thenNode.build()
         : thenNode,
     });
@@ -1264,14 +903,14 @@ export class ConditionalBuilder {
     path: string,
     operator: DataCondition['operator'],
     value: unknown,
-    thenNode: LayoutNode | StackBuilder | FlexBuilder | GridBuilder
+    thenNode: LayoutNode | StackBuilder | FlexBuilder
   ): this {
     return this.elseIf({ path, operator, value }, thenNode);
   }
 
   /** Set the node to render when all conditions are false */
-  else(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.else = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+  else(node: LayoutNode | StackBuilder | FlexBuilder): this {
+    this.node.else = node instanceof StackBuilder || node instanceof FlexBuilder
       ? node.build()
       : node;
     return this;
@@ -1312,11 +951,11 @@ export class SwitchBuilder {
   /** Add a case branch */
   case(
     value: unknown | unknown[],
-    thenNode: LayoutNode | StackBuilder | FlexBuilder | GridBuilder
+    thenNode: LayoutNode | StackBuilder | FlexBuilder
   ): this {
     this.node.cases.push({
       value,
-      then: thenNode instanceof StackBuilder || thenNode instanceof FlexBuilder || thenNode instanceof GridBuilder
+      then: thenNode instanceof StackBuilder || thenNode instanceof FlexBuilder
         ? thenNode.build()
         : thenNode,
     });
@@ -1324,8 +963,8 @@ export class SwitchBuilder {
   }
 
   /** Set the default node when no cases match */
-  default(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.default = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+  default(node: LayoutNode | StackBuilder | FlexBuilder): this {
+    this.node.default = node instanceof StackBuilder || node instanceof FlexBuilder
       ? node.build()
       : node;
     return this;
@@ -1381,24 +1020,24 @@ export class EachBuilder {
   }
 
   /** Set the node template to render for each item */
-  render(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder | TemplateBuilder): this {
-    this.node.render = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder || node instanceof TemplateBuilder
+  render(node: LayoutNode | StackBuilder | FlexBuilder | TemplateBuilder): this {
+    this.node.render = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof TemplateBuilder
       ? node.build()
       : node;
     return this;
   }
 
   /** Set the node to render when array is empty */
-  empty(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.empty = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+  empty(node: LayoutNode | StackBuilder | FlexBuilder): this {
+    this.node.empty = node instanceof StackBuilder || node instanceof FlexBuilder
       ? node.build()
       : node;
     return this;
   }
 
   /** Set the separator node between items */
-  separator(node: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
-    this.node.separator = node instanceof StackBuilder || node instanceof FlexBuilder || node instanceof GridBuilder
+  separator(node: LayoutNode | StackBuilder | FlexBuilder): this {
+    this.node.separator = node instanceof StackBuilder || node instanceof FlexBuilder
       ? node.build()
       : node;
     return this;
@@ -1421,26 +1060,6 @@ export class EachBuilder {
   /** Set margin */
   margin(m: MarginSpec): this {
     this.node.margin = m;
-    return this;
-  }
-
-  // === PAGINATION HINTS ===
-
-  /** Force a page break before this node */
-  breakBefore(on: boolean = true): this {
-    this.node.breakBefore = on;
-    return this;
-  }
-
-  /** Force a page break after this node */
-  breakAfter(on: boolean = true): this {
-    this.node.breakAfter = on;
-    return this;
-  }
-
-  /** Keep this node together on the same page if possible */
-  keepTogether(on: boolean = true): this {
-    this.node.keepTogether = on;
     return this;
   }
 
