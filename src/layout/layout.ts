@@ -82,11 +82,13 @@ function alignHorizontal(
   contentWidth: number,
   containerWidth: number
 ): number {
+  // When content is wider than container, clamp offset to 0 to prevent
+  // content from being positioned outside the container's left edge
   switch (align) {
     case 'center':
-      return Math.floor((containerWidth - contentWidth) / 2);
+      return Math.max(0, Math.floor((containerWidth - contentWidth) / 2));
     case 'right':
-      return containerWidth - contentWidth;
+      return Math.max(0, containerWidth - contentWidth);
     case 'left':
     default:
       return 0;
@@ -95,6 +97,9 @@ function alignHorizontal(
 
 /**
  * Calculate Y offset for vertical alignment
+ * When content is taller than container, clamp offset to 0 to prevent
+ * content from being positioned above the container's top edge
+ * (ESC/P printers can't render at negative Y positions)
  */
 function alignVertical(
   align: VAlign | undefined,
@@ -103,9 +108,9 @@ function alignVertical(
 ): number {
   switch (align) {
     case 'center':
-      return Math.floor((containerHeight - contentHeight) / 2);
+      return Math.max(0, Math.floor((containerHeight - contentHeight) / 2));
     case 'bottom':
-      return containerHeight - contentHeight;
+      return Math.max(0, containerHeight - contentHeight);
     case 'top':
     default:
       return 0;
@@ -330,7 +335,10 @@ function layoutStackNode(
         // Auto horizontal margins - center the child based on logical width
         xOffset = Math.floor((contentWidth - childLogicalWidth) / 2);
       } else {
-        xOffset = alignHorizontal(node.align, childMeasured.preferredWidth, contentWidth);
+        // Include margins in width for alignment calculation
+        // so the entire margin box is aligned, not just the content box
+        const outerWidth = childMeasured.preferredWidth + childMeasured.margin.left + childMeasured.margin.right;
+        xOffset = alignHorizontal(node.align, outerWidth, contentWidth);
       }
 
       // For auto-margin children, pass their logical width (not container width)
@@ -365,10 +373,20 @@ function layoutStackNode(
       // This aligns box edges (like CSS flexbox align-items)
       const yOffset = alignVertical(node.vAlign, childMeasured.preferredHeight, rowHeight);
 
+      // Handle auto horizontal margins - center child within content width
+      let childX = currentX;
+      let childLayoutWidth = childMeasured.preferredWidth;
+
+      if (childMeasured.margin.autoHorizontal) {
+        const childLogicalWidth = childMeasured.explicitWidth ?? childMeasured.preferredWidth;
+        childX = contentX + Math.floor((contentWidth - childLogicalWidth) / 2);
+        childLayoutWidth = childLogicalWidth;
+      }
+
       const childResult = layoutNode(childMeasured, {
-        x: currentX,
+        x: childX,
         y: contentY + yOffset,
-        width: childMeasured.preferredWidth,
+        width: childLayoutWidth,
         height: childMeasured.preferredHeight,
       });
 
@@ -499,13 +517,20 @@ function layoutFlexNode(
     measured.children.forEach((childMeasured, i) => {
       // Calculate Y offset based on alignItems
       const yOffset = alignVertical(alignItems, childMeasured.preferredHeight, contentHeight);
-      const xPosition = xPositions[i] ?? 0;
+      let xPosition = xPositions[i] ?? 0;
       const childWidth = childWidths[i] ?? childMeasured.preferredWidth;
 
-      // For nested flex containers without explicit width, pass parent's contentWidth
-      // so they can calculate their own justify positioning correctly
-      const childLayoutWidth = childMeasured.node.type === 'flex' && !childMeasured.explicitWidth
-        ? contentWidth
+      // Handle auto horizontal margins - center child within available space
+      if (childMeasured.margin.autoHorizontal) {
+        const childLogicalWidth = childMeasured.explicitWidth ?? childMeasured.preferredWidth;
+        // For single child or children with auto margins, center within content area
+        xPosition = Math.floor((contentWidth - childLogicalWidth) / 2);
+      }
+
+      // Use the allocated childWidth for all children, including nested flex containers
+      // Nested flex should use its allocated width, not the parent's full contentWidth
+      const childLayoutWidth = childMeasured.margin.autoHorizontal
+        ? (childMeasured.explicitWidth ?? childMeasured.preferredWidth)
         : childWidth;
 
       const childResult = layoutNode(childMeasured, {
@@ -590,11 +615,21 @@ function layoutGridNode(
       const rowPosition = rowPositions[rowIdx] ?? 0;
 
       const childResult = layoutNode(childMeasured, {
-        x: contentX + colPosition,  // No xOffset - renderer handles alignment
+        x: contentX + colPosition,
         y: contentY + rowPosition + yOffset,
         width: cellWidth,
         height: cellHeight,
       });
+
+      // Handle auto horizontal margins - center child within cell width
+      if (childMeasured.margin.autoHorizontal) {
+        const childLogicalWidth = childMeasured.explicitWidth ?? childMeasured.preferredWidth;
+        childResult.x = contentX + colPosition + Math.floor((cellWidth - childLogicalWidth) / 2);
+      } else {
+        // Reset x position to column start - layoutTextNode may have applied alignment
+        // but for grid cells, the renderer should handle alignment within cell boundaries
+        childResult.x = contentX + colPosition;
+      }
 
       // Store cell alignment for renderer to use (legacy)
       if (cellAlign) {

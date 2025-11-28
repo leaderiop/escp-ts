@@ -49,66 +49,78 @@ async function main() {
     )
     .spacer(30)
 
-    // Absolute positioning example
+    // Absolute positioning explanation
     .text('ABSOLUTE POSITIONING:', { bold: true })
-    .text('(Elements positioned at specific X,Y coordinates)', { italic: true })
-    .spacer(10)
-
-    // These will be placed at absolute positions
-    .add(
-      stack()
-        .absolutePosition(100, 600)  // Position at x=100, y=600
-        .text('Position (100, 600)', { bold: true })
-    )
-    .add(
-      stack()
-        .absolutePosition(400, 600)  // Position at x=400, y=600
-        .text('Position (400, 600)', { bold: true })
-    )
-    .add(
-      stack()
-        .absolutePosition(700, 600)  // Position at x=700, y=600
-        .text('Position (700, 600)', { bold: true })
-    )
-
-    // Diagonal positioning
-    .add(
-      stack()
-        .absolutePosition(150, 700)
-        .text('Diagonal 1')
-    )
-    .add(
-      stack()
-        .absolutePosition(350, 800)
-        .text('Diagonal 2')
-    )
-    .add(
-      stack()
-        .absolutePosition(550, 900)
-        .text('Diagonal 3')
-    )
+    .text('(See items below - positioned at exact X,Y coordinates)', { italic: true })
+    .spacer(30)
 
     // Practical example: Watermark
-    .spacer(200)
     .text('PRACTICAL USE: Watermark-style positioning', { bold: true })
     .text('A watermark can be placed at an absolute position.', { italic: true })
-
-    // Simulated watermark
-    .add(
-      stack()
-        .absolutePosition(200, 1100)
-        .text('SAMPLE DOCUMENT', { bold: true, doubleWidth: true, italic: true })
-    )
+    .spacer(30)
 
     // More normal content
-    .spacer(100)
     .text('Normal content continues here...')
     .text('The watermark above does not affect the flow.')
     .spacer(30)
 
     // Footer
     .line('-', 'fill')
-    .text('End of Positioning Demo', { align: 'center', italic: true })
+    .text('End of Normal Flow Content', { align: 'center', italic: true })
+    .spacer(50)
+
+    // === ABSOLUTE POSITIONED ITEMS ===
+    // These are placed at exact Y coordinates (after all flow content which ends ~Y=1504)
+    // Y=1700+ ensures no overlap with flow content above
+
+    // Row of items at Y=1700
+    .add(
+      stack()
+        .absolutePosition(100, 1700)
+        .text('Abs (100, 1700)', { bold: true })
+    )
+    .add(
+      stack()
+        .absolutePosition(500, 1700)
+        .text('Abs (500, 1700)', { bold: true })
+    )
+    .add(
+      stack()
+        .absolutePosition(900, 1700)
+        .text('Abs (900, 1700)', { bold: true })
+    )
+
+    // Diagonal pattern starting at Y=1800
+    .add(
+      stack()
+        .absolutePosition(150, 1800)
+        .text('Diagonal 1')
+    )
+    .add(
+      stack()
+        .absolutePosition(400, 1880)
+        .text('Diagonal 2')
+    )
+    .add(
+      stack()
+        .absolutePosition(650, 1960)
+        .text('Diagonal 3')
+    )
+
+    // Watermark at Y=2100
+    .add(
+      stack()
+        .absolutePosition(300, 2100)
+        .text('SAMPLE DOCUMENT', { bold: true, doubleWidth: true, italic: true })
+    )
+
+    // Final marker
+    .add(
+      stack()
+        .absolutePosition(100, 2200)
+        .text('--- End of Absolute Positioning Demo ---', { italic: true })
+    )
+
     .build();
 
   engine.render(layout);
