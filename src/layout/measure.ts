@@ -107,6 +107,8 @@ export interface MeasuredNode {
   fallbackMeasured?: MeasuredNode;
   /** For flex wrap: lines of wrapped children */
   flexLines?: FlexLine[];
+  /** Explicit width if specified (number or resolved percentage, not 'auto' or 'fill') */
+  explicitWidth?: number;
 }
 
 // ==================== HELPER FUNCTIONS ====================
@@ -275,6 +277,13 @@ function measureTextNode(
   preferredWidth = constrained.width;
   preferredHeight = constrained.height;
 
+  // Track explicit width if specified (number or resolved percentage)
+  let explicitWidth: number | undefined;
+  const widthSpec = resolveWidthSpec(node.width, ctx.availableWidth);
+  if (typeof widthSpec === 'number') {
+    explicitWidth = widthSpec;
+  }
+
   return {
     node,
     minContentWidth: textWidth,
@@ -285,6 +294,7 @@ function measureTextNode(
     margin,
     style,
     children: [],
+    ...(explicitWidth !== undefined && { explicitWidth }),
   };
 }
 
@@ -380,23 +390,36 @@ function measureStackNode(
   let minContentWidth = 0;
   let minContentHeight = 0;
 
+  // Count flow children (non-absolute positioned) for gap calculation
+  let flowChildCount = 0;
+
   if (direction === 'column') {
     // Vertical stack: width is max of children, height is sum
-    measuredChildren.forEach((child, i) => {
+    measuredChildren.forEach((child) => {
+      // Skip absolute positioned children in size calculations
+      const childNode = child.node as { position?: string };
+      if (childNode.position === 'absolute') return;
+
       minContentWidth = Math.max(minContentWidth, child.preferredWidth);
       minContentHeight += child.preferredHeight;
-      if (i > 0) {
+      if (flowChildCount > 0) {
         minContentHeight += gap;
       }
+      flowChildCount++;
     });
   } else {
     // Horizontal stack (row): width is sum, height is max
-    measuredChildren.forEach((child, i) => {
+    measuredChildren.forEach((child) => {
+      // Skip absolute positioned children in size calculations
+      const childNode = child.node as { position?: string };
+      if (childNode.position === 'absolute') return;
+
       minContentWidth += child.preferredWidth;
       minContentHeight = Math.max(minContentHeight, child.preferredHeight);
-      if (i > 0) {
+      if (flowChildCount > 0) {
         minContentWidth += gap;
       }
+      flowChildCount++;
     });
   }
 
@@ -417,6 +440,9 @@ function measureStackNode(
   preferredWidth = constrained.width;
   preferredHeight = constrained.height;
 
+  // Track explicit width if specified (number or resolved percentage)
+  const explicitWidth = typeof widthSpec === 'number' ? widthSpec : undefined;
+
   return {
     node,
     minContentWidth,
@@ -427,6 +453,7 @@ function measureStackNode(
     margin,
     style,
     children: measuredChildren,
+    ...(explicitWidth !== undefined && { explicitWidth }),
   };
 }
 
@@ -446,7 +473,12 @@ function measureFlexNode(
   const shouldWrap = node.wrap === 'wrap';
 
   // Content area width (for wrapping calculations)
-  const contentAreaWidth = ctx.availableWidth - padding.left - padding.right - margin.left - margin.right;
+  // Use explicit width if flex container has one, otherwise use available width
+  const containerWidthSpec = resolveWidthSpec(node.width, ctx.availableWidth);
+  const containerBaseWidth = (containerWidthSpec === 'fill' || containerWidthSpec === 'auto')
+    ? ctx.availableWidth
+    : (typeof containerWidthSpec === 'number' ? containerWidthSpec : ctx.availableWidth);
+  const contentAreaWidth = containerBaseWidth - padding.left - padding.right - margin.left - margin.right;
 
   // Measure all children
   const childCtx: MeasureContext = {
@@ -473,7 +505,9 @@ function measureFlexNode(
     let currentLineHeight = 0;
 
     measuredChildren.forEach((child, i) => {
-      const childWidth = child.preferredWidth;
+      // Include margins in width calculation for wrap decision
+      // preferredWidth may not include margins when explicit width is set
+      const childWidth = child.preferredWidth + child.margin.left + child.margin.right;
       const gapBefore = (i > currentLineStart) ? gap : 0;
 
       // Check if child fits on current line (with gap if not first item on line)
@@ -540,6 +574,9 @@ function measureFlexNode(
   preferredWidth = constrained.width;
   preferredHeight = constrained.height;
 
+  // Track explicit width if specified (number or resolved percentage)
+  const explicitWidth = typeof widthSpec === 'number' ? widthSpec : undefined;
+
   return {
     node,
     minContentWidth,
@@ -551,6 +588,7 @@ function measureFlexNode(
     style,
     children: measuredChildren,
     ...(flexLines && { flexLines }),
+    ...(explicitWidth !== undefined && { explicitWidth }),
   };
 }
 

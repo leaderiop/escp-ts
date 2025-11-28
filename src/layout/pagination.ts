@@ -418,7 +418,14 @@ function paginateItems(
 
     // Calculate the Y adjustment for this group
     // All items in the group get the SAME adjustment
-    const groupDeltaY = ctx.currentY - group.y;
+    // On first page with first group, preserve original Y to maintain container margins/padding
+    const isFirstGroupOnFirstPage = ctx.currentPageIndex === 0 && currentPage.items.length === 0;
+    const groupDeltaY = isFirstGroupOnFirstPage ? 0 : ctx.currentY - group.y;
+
+    // If preserving original Y, sync currentY to match for subsequent groups
+    if (isFirstGroupOnFirstPage) {
+      ctx.currentY = group.y;
+    }
 
     // Process all items in the group
     for (const item of group.items) {
