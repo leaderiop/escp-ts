@@ -7,8 +7,9 @@ import { CHAR_TABLE } from '../core/constants';
 import type { CharacterTable } from '../core/types';
 
 /**
- * CP437 Box Drawing Character Codes
+ * CP437 Box Drawing Character Codes (byte values)
  * These are the standard IBM PC line-drawing characters used in CP437, CP850, and related code pages
+ * Note: These are the raw byte values for ESC/P printer output
  */
 export const CP437_BOX = {
   // Single-line box drawing
@@ -43,6 +44,43 @@ export const CP437_BOX = {
 } as const;
 
 /**
+ * Unicode Box Drawing Characters
+ * These are the Unicode equivalents for preview/display rendering
+ * JavaScript's String.fromCharCode uses Unicode, not CP437, so we need these mappings
+ */
+export const UNICODE_BOX = {
+  // Single-line box drawing (U+250x range)
+  SINGLE_TOP_LEFT: '\u250C', // ┌
+  SINGLE_TOP_RIGHT: '\u2510', // ┐
+  SINGLE_BOTTOM_LEFT: '\u2514', // └
+  SINGLE_BOTTOM_RIGHT: '\u2518', // ┘
+  SINGLE_HORIZONTAL: '\u2500', // ─
+  SINGLE_VERTICAL: '\u2502', // │
+
+  // Double-line box drawing (U+255x range)
+  DOUBLE_TOP_LEFT: '\u2554', // ╔
+  DOUBLE_TOP_RIGHT: '\u2557', // ╗
+  DOUBLE_BOTTOM_LEFT: '\u255A', // ╚
+  DOUBLE_BOTTOM_RIGHT: '\u255D', // ╝
+  DOUBLE_HORIZONTAL: '\u2550', // ═
+  DOUBLE_VERTICAL: '\u2551', // ║
+
+  // T-junctions (single)
+  SINGLE_T_DOWN: '\u252C', // ┬
+  SINGLE_T_UP: '\u2534', // ┴
+  SINGLE_T_RIGHT: '\u251C', // ├
+  SINGLE_T_LEFT: '\u2524', // ┤
+  SINGLE_CROSS: '\u253C', // ┼
+
+  // T-junctions (double)
+  DOUBLE_T_DOWN: '\u2566', // ╦
+  DOUBLE_T_UP: '\u2569', // ╩
+  DOUBLE_T_RIGHT: '\u2560', // ╠
+  DOUBLE_T_LEFT: '\u2563', // ╣
+  DOUBLE_CROSS: '\u256C', // ╬
+} as const;
+
+/**
  * Border character set for text-mode rendering
  */
 export interface BorderCharSet {
@@ -52,6 +90,18 @@ export interface BorderCharSet {
   bottomRight: string;
   horizontal: string;
   vertical: string;
+}
+
+/**
+ * Extended border character set for grid/table borders
+ * Adds T-junctions and cross characters needed for full grids
+ */
+export interface GridBorderCharSet extends BorderCharSet {
+  tDown: string; // ┬ (top T-junction, between columns)
+  tUp: string; // ┴ (bottom T-junction, between columns)
+  tRight: string; // ├ (left T-junction, row separator start)
+  tLeft: string; // ┤ (right T-junction, row separator end)
+  cross: string; // ┼ (interior row/column intersection)
 }
 
 /**
@@ -90,12 +140,12 @@ export function getSingleBorderChars(charTable: CharacterTable): BorderCharSet |
   }
 
   return {
-    topLeft: String.fromCharCode(CP437_BOX.SINGLE_TOP_LEFT),
-    topRight: String.fromCharCode(CP437_BOX.SINGLE_TOP_RIGHT),
-    bottomLeft: String.fromCharCode(CP437_BOX.SINGLE_BOTTOM_LEFT),
-    bottomRight: String.fromCharCode(CP437_BOX.SINGLE_BOTTOM_RIGHT),
-    horizontal: String.fromCharCode(CP437_BOX.SINGLE_HORIZONTAL),
-    vertical: String.fromCharCode(CP437_BOX.SINGLE_VERTICAL),
+    topLeft: UNICODE_BOX.SINGLE_TOP_LEFT,
+    topRight: UNICODE_BOX.SINGLE_TOP_RIGHT,
+    bottomLeft: UNICODE_BOX.SINGLE_BOTTOM_LEFT,
+    bottomRight: UNICODE_BOX.SINGLE_BOTTOM_RIGHT,
+    horizontal: UNICODE_BOX.SINGLE_HORIZONTAL,
+    vertical: UNICODE_BOX.SINGLE_VERTICAL,
   };
 }
 
@@ -110,12 +160,12 @@ export function getDoubleBorderChars(charTable: CharacterTable): BorderCharSet |
   }
 
   return {
-    topLeft: String.fromCharCode(CP437_BOX.DOUBLE_TOP_LEFT),
-    topRight: String.fromCharCode(CP437_BOX.DOUBLE_TOP_RIGHT),
-    bottomLeft: String.fromCharCode(CP437_BOX.DOUBLE_BOTTOM_LEFT),
-    bottomRight: String.fromCharCode(CP437_BOX.DOUBLE_BOTTOM_RIGHT),
-    horizontal: String.fromCharCode(CP437_BOX.DOUBLE_HORIZONTAL),
-    vertical: String.fromCharCode(CP437_BOX.DOUBLE_VERTICAL),
+    topLeft: UNICODE_BOX.DOUBLE_TOP_LEFT,
+    topRight: UNICODE_BOX.DOUBLE_TOP_RIGHT,
+    bottomLeft: UNICODE_BOX.DOUBLE_BOTTOM_LEFT,
+    bottomRight: UNICODE_BOX.DOUBLE_BOTTOM_RIGHT,
+    horizontal: UNICODE_BOX.DOUBLE_HORIZONTAL,
+    vertical: UNICODE_BOX.DOUBLE_VERTICAL,
   };
 }
 
@@ -145,6 +195,73 @@ export const ASCII_BORDER_CHARS: BorderCharSet = {
 };
 
 /**
+ * Single-line grid characters (Unicode for display/preview)
+ */
+export const SINGLE_GRID: GridBorderCharSet = {
+  topLeft: UNICODE_BOX.SINGLE_TOP_LEFT,
+  topRight: UNICODE_BOX.SINGLE_TOP_RIGHT,
+  bottomLeft: UNICODE_BOX.SINGLE_BOTTOM_LEFT,
+  bottomRight: UNICODE_BOX.SINGLE_BOTTOM_RIGHT,
+  horizontal: UNICODE_BOX.SINGLE_HORIZONTAL,
+  vertical: UNICODE_BOX.SINGLE_VERTICAL,
+  tDown: UNICODE_BOX.SINGLE_T_DOWN,
+  tUp: UNICODE_BOX.SINGLE_T_UP,
+  tRight: UNICODE_BOX.SINGLE_T_RIGHT,
+  tLeft: UNICODE_BOX.SINGLE_T_LEFT,
+  cross: UNICODE_BOX.SINGLE_CROSS,
+};
+
+/**
+ * Double-line grid characters (Unicode for display/preview)
+ */
+export const DOUBLE_GRID: GridBorderCharSet = {
+  topLeft: UNICODE_BOX.DOUBLE_TOP_LEFT,
+  topRight: UNICODE_BOX.DOUBLE_TOP_RIGHT,
+  bottomLeft: UNICODE_BOX.DOUBLE_BOTTOM_LEFT,
+  bottomRight: UNICODE_BOX.DOUBLE_BOTTOM_RIGHT,
+  horizontal: UNICODE_BOX.DOUBLE_HORIZONTAL,
+  vertical: UNICODE_BOX.DOUBLE_VERTICAL,
+  tDown: UNICODE_BOX.DOUBLE_T_DOWN,
+  tUp: UNICODE_BOX.DOUBLE_T_UP,
+  tRight: UNICODE_BOX.DOUBLE_T_RIGHT,
+  tLeft: UNICODE_BOX.DOUBLE_T_LEFT,
+  cross: UNICODE_BOX.DOUBLE_CROSS,
+};
+
+/**
+ * ASCII fallback grid characters (works on all code pages)
+ */
+export const ASCII_GRID: GridBorderCharSet = {
+  topLeft: '+',
+  topRight: '+',
+  bottomLeft: '+',
+  bottomRight: '+',
+  horizontal: '-',
+  vertical: '|',
+  tDown: '+',
+  tUp: '+',
+  tRight: '+',
+  tLeft: '+',
+  cross: '+',
+};
+
+/**
+ * Get grid border character set by style
+ * @param style 'single', 'double', or 'ascii'
+ * @returns GridBorderCharSet for the specified style
+ */
+export function getGridBorderCharSet(style: 'single' | 'double' | 'ascii'): GridBorderCharSet {
+  switch (style) {
+    case 'double':
+      return DOUBLE_GRID;
+    case 'ascii':
+      return ASCII_GRID;
+    default:
+      return SINGLE_GRID;
+  }
+}
+
+/**
  * Get border characters with ASCII fallback
  * @param charTable The character table/code page
  * @param style 'single', 'double', or 'ascii'
@@ -164,11 +281,16 @@ export function getBorderCharsWithFallback(
 
 export default {
   CP437_BOX,
+  UNICODE_BOX,
   BOX_DRAWING_CODE_PAGES,
   ASCII_BORDER_CHARS,
+  SINGLE_GRID,
+  DOUBLE_GRID,
+  ASCII_GRID,
   supportsBoxDrawing,
   getSingleBorderChars,
   getDoubleBorderChars,
   getBoxDrawingChars,
   getBorderCharsWithFallback,
+  getGridBorderCharSet,
 };

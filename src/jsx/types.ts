@@ -225,6 +225,14 @@ export interface TableProps {
   separator?: string;
   style?: NodeStyle;
   children?: JSXChildren;
+  /**
+   * Enable full grid borders around table cells
+   * - true: Auto-detect (CP437 'single' if supported, 'ascii' fallback)
+   * - 'single': Single-line CP437 box drawing (┌─┬─┐, │, ├─┼─┤, └─┴─┘)
+   * - 'double': Double-line CP437 box drawing (╔═╦═╗, ║, ╠═╬═╣, ╚═╩═╝)
+   * - 'ascii': ASCII characters (+, -, |)
+   */
+  border?: boolean | 'single' | 'double' | 'ascii';
 }
 
 /**

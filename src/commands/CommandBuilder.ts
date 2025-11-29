@@ -872,6 +872,38 @@ export class CommandBuilder {
   // ==================== UTILITY METHODS ====================
 
   /**
+   * Unicode to CP437 mapping for box-drawing characters
+   * Maps Unicode code points (U+2500 range) to CP437 byte values
+   */
+  private static readonly UNICODE_TO_CP437: Record<number, number> = {
+    // Single line
+    0x2500: 0xc4, // ─ horizontal
+    0x2502: 0xb3, // │ vertical
+    0x250c: 0xda, // ┌ top-left
+    0x2510: 0xbf, // ┐ top-right
+    0x2514: 0xc0, // └ bottom-left
+    0x2518: 0xd9, // ┘ bottom-right
+    0x251c: 0xc3, // ├ left T
+    0x2524: 0xb4, // ┤ right T
+    0x252c: 0xc2, // ┬ top T
+    0x2534: 0xc1, // ┴ bottom T
+    0x253c: 0xc5, // ┼ cross
+
+    // Double line
+    0x2550: 0xcd, // ═ double horizontal
+    0x2551: 0xba, // ║ double vertical
+    0x2554: 0xc9, // ╔ double top-left
+    0x2557: 0xbb, // ╗ double top-right
+    0x255a: 0xc8, // ╚ double bottom-left
+    0x255d: 0xbc, // ╝ double bottom-right
+    0x2560: 0xcc, // ╠ double left T
+    0x2563: 0xb9, // ╣ double right T
+    0x2566: 0xcb, // ╦ double top T
+    0x2569: 0xca, // ╩ double bottom T
+    0x256c: 0xce, // ╬ double cross
+  };
+
+  /**
    * Encode text with current character set
    * @param text Text to encode
    * @param encoding Character encoding (default: ascii)
@@ -881,8 +913,14 @@ export class CommandBuilder {
     const result = new Uint8Array(text.length);
     for (let i = 0; i < text.length; i++) {
       const code = text.charCodeAt(i);
-      // Handle ASCII and Latin-1 directly
-      result[i] = code & 0xff;
+      // Check for Unicode box-drawing characters and map to CP437
+      const cp437Code = this.UNICODE_TO_CP437[code];
+      if (cp437Code !== undefined) {
+        result[i] = cp437Code;
+      } else {
+        // Handle ASCII and Latin-1 directly
+        result[i] = code & 0xff;
+      }
     }
     return result;
   }

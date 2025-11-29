@@ -31,13 +31,32 @@ export {
   CP437_BOX,
   BOX_DRAWING_CODE_PAGES,
   ASCII_BORDER_CHARS,
+  SINGLE_GRID,
+  DOUBLE_GRID,
+  ASCII_GRID,
   supportsBoxDrawing,
   getSingleBorderChars,
   getDoubleBorderChars,
   getBoxDrawingChars,
   getBorderCharsWithFallback,
+  getGridBorderCharSet,
   type BorderCharSet,
+  type GridBorderCharSet,
 } from './BoxDrawingChars';
+
+// Table Border Renderer
+export {
+  resolveBorderConfig,
+  createTopBorderRow,
+  createBottomBorderRow,
+  createRowSeparator,
+  createBorderedCell,
+  wrapCellsWithVerticalBorders,
+  getDefaultGridChars,
+  type TableBorderStyle,
+  type TableStructure,
+  type TableBorderConfig,
+} from './TableBorderRenderer';
 
 // Graphics Border Generator
 export {

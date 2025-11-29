@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CP437_BOX,
+  UNICODE_BOX,
   BOX_DRAWING_CODE_PAGES,
   ASCII_BORDER_CHARS,
   supportsBoxDrawing,
@@ -85,15 +86,16 @@ describe('BoxDrawingChars', () => {
   });
 
   describe('getSingleBorderChars', () => {
-    it('should return single-line chars for PC437', () => {
+    it('should return single-line Unicode chars for PC437', () => {
       const chars = getSingleBorderChars(CHAR_TABLE.PC437_USA as CharacterTable);
       expect(chars).not.toBeNull();
-      expect(chars?.topLeft).toBe(String.fromCharCode(0xda));
-      expect(chars?.topRight).toBe(String.fromCharCode(0xbf));
-      expect(chars?.bottomLeft).toBe(String.fromCharCode(0xc0));
-      expect(chars?.bottomRight).toBe(String.fromCharCode(0xd9));
-      expect(chars?.horizontal).toBe(String.fromCharCode(0xc4));
-      expect(chars?.vertical).toBe(String.fromCharCode(0xb3));
+      // Now returns Unicode box-drawing characters for display/preview
+      expect(chars?.topLeft).toBe(UNICODE_BOX.SINGLE_TOP_LEFT);
+      expect(chars?.topRight).toBe(UNICODE_BOX.SINGLE_TOP_RIGHT);
+      expect(chars?.bottomLeft).toBe(UNICODE_BOX.SINGLE_BOTTOM_LEFT);
+      expect(chars?.bottomRight).toBe(UNICODE_BOX.SINGLE_BOTTOM_RIGHT);
+      expect(chars?.horizontal).toBe(UNICODE_BOX.SINGLE_HORIZONTAL);
+      expect(chars?.vertical).toBe(UNICODE_BOX.SINGLE_VERTICAL);
     });
 
     it('should return null for unsupported code pages', () => {
@@ -103,15 +105,16 @@ describe('BoxDrawingChars', () => {
   });
 
   describe('getDoubleBorderChars', () => {
-    it('should return double-line chars for PC437', () => {
+    it('should return double-line Unicode chars for PC437', () => {
       const chars = getDoubleBorderChars(CHAR_TABLE.PC437_USA as CharacterTable);
       expect(chars).not.toBeNull();
-      expect(chars?.topLeft).toBe(String.fromCharCode(0xc9));
-      expect(chars?.topRight).toBe(String.fromCharCode(0xbb));
-      expect(chars?.bottomLeft).toBe(String.fromCharCode(0xc8));
-      expect(chars?.bottomRight).toBe(String.fromCharCode(0xbc));
-      expect(chars?.horizontal).toBe(String.fromCharCode(0xcd));
-      expect(chars?.vertical).toBe(String.fromCharCode(0xba));
+      // Now returns Unicode box-drawing characters for display/preview
+      expect(chars?.topLeft).toBe(UNICODE_BOX.DOUBLE_TOP_LEFT);
+      expect(chars?.topRight).toBe(UNICODE_BOX.DOUBLE_TOP_RIGHT);
+      expect(chars?.bottomLeft).toBe(UNICODE_BOX.DOUBLE_BOTTOM_LEFT);
+      expect(chars?.bottomRight).toBe(UNICODE_BOX.DOUBLE_BOTTOM_RIGHT);
+      expect(chars?.horizontal).toBe(UNICODE_BOX.DOUBLE_HORIZONTAL);
+      expect(chars?.vertical).toBe(UNICODE_BOX.DOUBLE_VERTICAL);
     });
 
     it('should return null for unsupported code pages', () => {
@@ -121,14 +124,14 @@ describe('BoxDrawingChars', () => {
   });
 
   describe('getBoxDrawingChars', () => {
-    it('should return single-line chars by default', () => {
+    it('should return single-line Unicode chars by default', () => {
       const chars = getBoxDrawingChars(CHAR_TABLE.PC437_USA as CharacterTable);
-      expect(chars?.topLeft).toBe(String.fromCharCode(0xda));
+      expect(chars?.topLeft).toBe(UNICODE_BOX.SINGLE_TOP_LEFT);
     });
 
-    it('should return double-line chars when specified', () => {
+    it('should return double-line Unicode chars when specified', () => {
       const chars = getBoxDrawingChars(CHAR_TABLE.PC437_USA as CharacterTable, 'double');
-      expect(chars?.topLeft).toBe(String.fromCharCode(0xc9));
+      expect(chars?.topLeft).toBe(UNICODE_BOX.DOUBLE_TOP_LEFT);
     });
 
     it('should return null for unsupported code pages', () => {
@@ -138,9 +141,9 @@ describe('BoxDrawingChars', () => {
   });
 
   describe('getBorderCharsWithFallback', () => {
-    it('should return CP437 chars for supported code pages', () => {
+    it('should return Unicode chars for supported code pages', () => {
       const chars = getBorderCharsWithFallback(CHAR_TABLE.PC437_USA as CharacterTable, 'single');
-      expect(chars.topLeft).toBe(String.fromCharCode(0xda));
+      expect(chars.topLeft).toBe(UNICODE_BOX.SINGLE_TOP_LEFT);
     });
 
     it('should return ASCII fallback for unsupported code pages', () => {

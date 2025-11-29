@@ -398,6 +398,11 @@ function applyLayoutProps(node: AnyNode, style: NodeStyle): void {
   if (style.padding !== undefined) (node as StackNode).padding = style.padding;
   if (style.margin !== undefined) (node as StackNode).margin = style.margin;
 
+  // Flex properties
+  if (style.flexGrow !== undefined) (node as StackNode).flexGrow = style.flexGrow;
+  if (style.flexShrink !== undefined) (node as StackNode).flexShrink = style.flexShrink;
+  if (style.flexBasis !== undefined) (node as StackNode).flexBasis = style.flexBasis;
+
   // Positioning
   if (style.position !== undefined) {
     (node as StackNode).position = style.position;

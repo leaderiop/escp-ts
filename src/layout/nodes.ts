@@ -320,6 +320,14 @@ export interface LayoutNodeBase extends StyleProps {
   /** Maximum height in dots */
   maxHeight?: number;
 
+  // ===== FLEX PROPERTIES =====
+  /** Flex grow factor - how much this item should grow relative to siblings */
+  flexGrow?: number;
+  /** Flex shrink factor - how much this item should shrink relative to siblings */
+  flexShrink?: number;
+  /** Flex basis - initial size before grow/shrink is applied */
+  flexBasis?: number;
+
   // ===== POSITIONING =====
   /** Positioning mode: 'static' (default), 'relative', or 'absolute' */
   position?: PositionMode;

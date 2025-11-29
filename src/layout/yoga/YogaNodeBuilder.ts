@@ -77,10 +77,23 @@ export function buildYogaTree(
   applyPosition(yogaNode, node as LayoutNodeBase);
   applyConstraints(yogaNode, node as LayoutNodeBase);
 
+  // Apply flex properties if specified on the node
+  const layoutNode = node as LayoutNodeBase;
+  if (layoutNode.flexGrow !== undefined) {
+    yogaNode.setFlexGrow(layoutNode.flexGrow);
+  }
+  if (layoutNode.flexShrink !== undefined) {
+    yogaNode.setFlexShrink(layoutNode.flexShrink);
+  }
+  if (layoutNode.flexBasis !== undefined) {
+    yogaNode.setFlexBasis(layoutNode.flexBasis);
+  }
+
   // Nodes with explicit width should NOT shrink when in a Flex container.
   // This ensures table columns with explicit widths maintain their size.
+  // Note: This is only applied if flexShrink wasn't explicitly set above.
   const nodeWidth = (node as LayoutNodeBase).width;
-  if (typeof nodeWidth === 'number') {
+  if (typeof nodeWidth === 'number' && layoutNode.flexShrink === undefined) {
     yogaNode.setFlexShrink(0);
   }
 
@@ -316,14 +329,21 @@ function buildLineNode(
   const direction = node.direction ?? 'horizontal';
   const length = node.length;
 
+  // Check if flexGrow was already set from style (don't override with default)
+  const hasExplicitFlexGrow = (node as LayoutNodeBase).flexGrow !== undefined;
+
   if (direction === 'horizontal') {
     // Horizontal line: fill width, fixed height
     yogaNode.setHeight(ctx.lineSpacing);
     yogaNode.setFlexShrink(0); // Don't shrink height
 
     if (length === 'fill') {
-      // Use 100% width to fill container
-      yogaNode.setWidthPercent(100);
+      // Use flexGrow to fill available width in flex containers
+      // Only set default flexGrow:1 if style didn't specify a value
+      // This allows Line to participate in proportional distribution (e.g., for table column widths)
+      if (!hasExplicitFlexGrow) {
+        yogaNode.setFlexGrow(1);
+      }
     } else if (typeof length === 'number') {
       yogaNode.setWidth(length);
     }
@@ -335,7 +355,10 @@ function buildLineNode(
 
     if (length === 'fill') {
       // Use flexGrow for vertical fill
-      yogaNode.setFlexGrow(1);
+      // Only set default flexGrow:1 if style didn't specify a value
+      if (!hasExplicitFlexGrow) {
+        yogaNode.setFlexGrow(1);
+      }
     } else if (typeof length === 'number') {
       yogaNode.setHeight(length);
     }
