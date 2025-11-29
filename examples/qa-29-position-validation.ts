@@ -70,6 +70,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   // Build layout with all test positions
   let layoutBuilder = stack().padding(0).gap(0);

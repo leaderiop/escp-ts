@@ -179,13 +179,11 @@ describe('index exports', () => {
     it('exports builder classes', () => {
       expect(escp.StackBuilder).toBeDefined();
       expect(escp.FlexBuilder).toBeDefined();
-      expect(escp.GridBuilder).toBeDefined();
     });
 
     it('exports factory functions', () => {
       expect(escp.stack).toBeDefined();
       expect(escp.flex).toBeDefined();
-      expect(escp.grid).toBeDefined();
       expect(escp.text).toBeDefined();
       expect(escp.spacer).toBeDefined();
       expect(escp.line).toBeDefined();
@@ -197,23 +195,16 @@ describe('index exports', () => {
 
       const flexNode = escp.flex().text('World').build();
       expect(flexNode.type).toBe('flex');
-
-      const gridNode = escp.grid([100]).cell('Cell').row().build();
-      expect(gridNode.type).toBe('grid');
     });
   });
 
   // ==================== Layout System ====================
 
   describe('layout system exports', () => {
-    it('exports measure phase functions', () => {
-      expect(escp.measureNode).toBeDefined();
-      expect(escp.DEFAULT_MEASURE_CONTEXT).toBeDefined();
-    });
-
-    it('exports layout phase functions', () => {
-      expect(escp.layoutNode).toBeDefined();
-      expect(escp.performLayout).toBeDefined();
+    it('exports Yoga adapter functions', () => {
+      expect(escp.YogaAdapter).toBeDefined();
+      expect(escp.createYogaAdapter).toBeDefined();
+      expect(escp.calculateYogaLayout).toBeDefined();
     });
 
     it('exports renderer functions', () => {
@@ -250,8 +241,9 @@ describe('index exports', () => {
       expect(output.length).toBeGreaterThan(0);
     });
 
-    it('can use layout builders with engine', () => {
+    it('can use layout builders with engine', async () => {
       const engine = new escp.LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = escp.stack()

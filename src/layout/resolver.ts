@@ -11,7 +11,6 @@ import type {
   TextNode,
   StackNode,
   FlexNode,
-  GridNode,
   TemplateNode,
   ConditionalNode,
   SwitchNode,
@@ -26,7 +25,6 @@ import {
   isEachNode,
   isStackNode,
   isFlexNode,
-  isGridNode,
   isTextNode,
 } from './nodes';
 import { interpolate, resolvePath, defaultFilters, type FilterRegistry } from './interpolation';
@@ -244,12 +242,6 @@ function resolveEachNode(
     ...(node.maxWidth !== undefined && { maxWidth: node.maxWidth }),
     ...(node.minHeight !== undefined && { minHeight: node.minHeight }),
     ...(node.maxHeight !== undefined && { maxHeight: node.maxHeight }),
-    // Copy pagination hints
-    ...(node.breakBefore !== undefined && { breakBefore: node.breakBefore }),
-    ...(node.breakAfter !== undefined && { breakAfter: node.breakAfter }),
-    ...(node.keepTogether !== undefined && { keepTogether: node.keepTogether }),
-    ...(node.minBeforeBreak !== undefined && { minBeforeBreak: node.minBeforeBreak }),
-    ...(node.minAfterBreak !== undefined && { minAfterBreak: node.minAfterBreak }),
   };
 
   return stackNode;
@@ -300,28 +292,6 @@ function resolveFlexNode(
   return {
     ...node,
     children: resolvedChildren,
-  };
-}
-
-/**
- * Resolve cells in a GridNode
- */
-function resolveGridNode(
-  node: GridNode,
-  ctx: DataContext,
-  options: ResolverOptions = {}
-): GridNode {
-  const resolvedRows = node.rows.map((row) => ({
-    ...row,
-    cells: row.cells.map((cell) => {
-      const resolved = resolveNode(cell, ctx, options);
-      return resolved ?? createEmptyNode();
-    }),
-  }));
-
-  return {
-    ...node,
-    rows: resolvedRows,
   };
 }
 
@@ -424,10 +394,6 @@ export function resolveNode(
 
   if (isFlexNode(node)) {
     return resolveFlexNode(node, ctx, options);
-  }
-
-  if (isGridNode(node)) {
-    return resolveGridNode(node, ctx, options);
   }
 
   // Handle TextNode with contentResolver

@@ -21,6 +21,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(25)
@@ -100,45 +101,9 @@ async function main() {
     )
     .spacer(15)
 
-    // Test 4: Flex inside flex with wrapping
-    .text('TEST 4: Nested flex with wrapping parent', { bold: true, underline: true })
-    .add(
-      flex()
-        .wrap('wrap')
-        .gap(20)
-        .rowGap(15)
-        .add(
-          flex()
-            .width(800)
-            .gap(10)
-            .add(stack().width(200).text('[W1-A]'))
-            .add(stack().width(200).text('[W1-B]'))
-        )
-        .add(
-          flex()
-            .width(800)
-            .gap(10)
-            .add(stack().width(200).text('[W2-A]'))
-            .add(stack().width(200).text('[W2-B]'))
-        )
-        .add(
-          flex()
-            .width(800)
-            .gap(10)
-            .add(stack().width(200).text('[W3-A]'))
-            .add(stack().width(200).text('[W3-B]'))
-        )
-        .add(
-          flex()
-            .width(800)
-            .gap(10)
-            .add(stack().width(200).text('[W4-A]'))
-            .add(stack().width(200).text('[W4-B]'))
-        )
-    )
-    .spacer(15)
+    // NOTE: Test 4 (wrapping parent) removed - flex-wrap no longer supported
 
-    // Test 5: Deep nesting edge case (5 levels)
+    // Test 4: Deep nesting edge case (5 levels)
     .text('TEST 5: Five-level deep nesting', { bold: true, underline: true })
     .add(
       flex()

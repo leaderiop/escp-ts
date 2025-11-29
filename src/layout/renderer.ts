@@ -6,12 +6,12 @@
  * optimal print head movement, and emits commands.
  */
 
-import type { LayoutResult } from './layout';
+import type { LayoutResult } from './yoga';
 import type { TextNode, LineNode, ResolvedStyle, TextOrientation, TextOverflow } from './nodes';
 import { CommandBuilder } from '../commands/CommandBuilder';
 import { encodeText, getCharacterWidth } from '../fonts/CharacterSet';
 import { INTERNATIONAL_CHARSET, CHAR_TABLE } from '../core/constants';
-import type { InternationalCharset, CharacterTable } from '../core/types';
+import type { InternationalCharset, CharacterTable, Typeface, PrintQuality } from '../core/types';
 
 // ==================== TEXT TRUNCATION ====================
 
@@ -165,40 +165,33 @@ function collectRenderItems(
   switch (node.type) {
     case 'text': {
       const textNode = node as TextNode;
-      const overflow = textNode.overflow ?? 'visible';
+      // Default to 'clip' for flex-constrained text to prevent overlaps
+      // Use 'visible' only when explicitly requested
+      const overflow = textNode.overflow ?? 'clip';
+
+      // Determine if text should be clipped based on context
+      // isWidthConstrained comes from Yoga builder and indicates:
+      // - true: text is in flex row or has explicit width - must clip
+      // - false/undefined: text is in stack column - allow overflow
+      const shouldClip = result.isWidthConstrained === true;
 
       // Determine the constraint width for truncation
-      // Only apply constraints for explicit widths or grid cells, not auto-width text
-      let constraintWidth = 0; // No constraint by default for auto-width text
-      let boundaryWidth = result.width; // For alignment calculations
+      // Only use constraint if shouldClip is true
+      let constraintWidth = 0;
+      const boundaryWidth = result.width; // For alignment calculations
 
-      if (result.renderConstraints) {
-        // Use render constraints from grid cells for boundary enforcement
-        constraintWidth = result.renderConstraints.boundaryWidth;
-        boundaryWidth = result.renderConstraints.boundaryWidth;
-
-        // Subtract padding from grid cell constraint
-        if (textNode.padding) {
-          const padding = typeof textNode.padding === 'number'
-            ? textNode.padding * 2
-            : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
-          constraintWidth = Math.max(0, constraintWidth - padding);
-        }
-      } else if (typeof textNode.width === 'number') {
-        // Explicit width is a hard constraint
-        constraintWidth = textNode.width;
-
-        // Subtract padding from explicit width constraint
-        if (textNode.padding) {
-          const padding = typeof textNode.padding === 'number'
-            ? textNode.padding * 2
-            : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
-          constraintWidth = Math.max(0, constraintWidth - padding);
-        }
+      if (shouldClip) {
+        constraintWidth = result.width; // Use Yoga-allocated width as constraint
       }
-      // For auto-width text (no explicit width, no renderConstraints), constraintWidth stays 0
 
-      // Apply text truncation only when there's an explicit constraint
+      // NOTE: We intentionally do NOT use textNode.width as a truncation constraint.
+      // Explicit width on text nodes is for LAYOUT allocation (reserving space),
+      // not for clipping. For example, list bullets use width:20 to reserve space
+      // but the actual bullet character should never be clipped.
+      // Text truncation only happens when the parent container constrains the text
+      // (when shouldClip is true from the layout context).
+
+      // Apply text truncation when text exceeds allocated width
       let content = textNode.content;
       let textWidth = 0;
 
@@ -213,12 +206,9 @@ function collectRenderItems(
         );
       }
 
-      // Truncate only if there's an explicit constraint AND text exceeds it
+      // Truncate if text exceeds constraint width (only when constrained)
       if (constraintWidth > 0 && textWidth > constraintWidth) {
-        // For grid cells, default to 'clip' to prevent overflow into adjacent columns
-        // For explicit widths, respect the user's overflow setting
-        const effectiveOverflow = result.renderConstraints && overflow === 'visible' ? 'clip' : overflow;
-        content = truncateText(content, constraintWidth, effectiveOverflow, result.style);
+        content = truncateText(content, constraintWidth, overflow, result.style);
 
         // Recalculate text width after truncation
         textWidth = 0;
@@ -234,9 +224,8 @@ function collectRenderItems(
       }
 
       // Calculate X position based on alignment
-      // Use renderConstraints.hAlign if available, otherwise fall back to cellAlign
       let renderX = effectiveX;
-      const alignment = result.renderConstraints?.hAlign ?? result.cellAlign;
+      const alignment = textNode.align;
       if (alignment && boundaryWidth > 0) {
         switch (alignment) {
           case 'center':
@@ -247,15 +236,6 @@ function collectRenderItems(
             break;
           // 'left' or undefined - no adjustment
         }
-      }
-
-      // Enforce cell boundary: ensure text doesn't overflow cell right edge
-      // Critical for grid cells with zero/small column gaps to prevent overlap
-      // Use Math.floor to avoid sub-pixel rounding issues
-      const cellRightEdge = effectiveX + boundaryWidth;
-      const textRightEdge = renderX + textWidth;
-      if (textRightEdge > cellRightEdge + 1) { // 1-dot tolerance for rounding
-        renderX = Math.max(effectiveX, Math.floor(cellRightEdge - textWidth));
       }
 
       items.push({
@@ -291,7 +271,6 @@ function collectRenderItems(
 
     case 'stack':
     case 'flex':
-    case 'grid':
       // Container nodes - recurse into children, passing accumulated offset
       for (const child of result.children) {
         collectRenderItems(child, items, thisOffset);
@@ -429,24 +408,39 @@ function applyStyle(ctx: RenderContext, style: ResolvedStyle): void {
     emit(ctx, CommandBuilder.setDoubleHeight(style.doubleHeight));
   }
 
-  // Condensed
-  if (style.condensed !== ctx.currentStyle.condensed) {
-    emit(ctx, style.condensed ? CommandBuilder.selectCondensed() : CommandBuilder.cancelCondensed());
-  }
-
-  // CPI
+  // CPI - Updated to handle all 5 values (10, 12, 15, 17, 20)
+  // Note: 17 CPI = pica base (10 CPI), 20 CPI = elite base (12 CPI)
+  // Condensed mode is controlled separately by the user
   if (style.cpi !== ctx.currentStyle.cpi) {
     switch (style.cpi) {
       case 10:
+      case 17:  // 17 CPI uses pica (10 CPI) as base
         emit(ctx, CommandBuilder.selectPica());
         break;
       case 12:
+      case 20:  // 20 CPI uses elite (12 CPI) as base
         emit(ctx, CommandBuilder.selectElite());
         break;
       case 15:
         emit(ctx, CommandBuilder.selectMicron());
         break;
     }
+  }
+
+  // Condensed - explicit user control
+  // For 17/20 CPI to work correctly, user should set condensed: true
+  if (style.condensed !== ctx.currentStyle.condensed) {
+    emit(ctx, style.condensed ? CommandBuilder.selectCondensed() : CommandBuilder.cancelCondensed());
+  }
+
+  // Typeface (ESC k n command)
+  if (style.typeface !== ctx.currentStyle.typeface) {
+    emit(ctx, CommandBuilder.selectTypeface(style.typeface as Typeface));
+  }
+
+  // Print Quality (ESC x n command)
+  if (style.printQuality !== ctx.currentStyle.printQuality) {
+    emit(ctx, CommandBuilder.selectQuality(style.printQuality as PrintQuality));
   }
 
   ctx.currentStyle = { ...style };
@@ -477,7 +471,7 @@ function renderTextItem(ctx: RenderContext, item: RenderItem): void {
 
   // Update X position after printing
   // Calculate actual text width to track printer head position accurately
-  // This is critical for grid columns with small/zero gaps
+  // This is critical for table columns with small/zero gaps
   let actualTextWidth = 0;
   for (const char of item.data.content) {
     actualTextWidth += getCharacterWidth(
@@ -543,16 +537,22 @@ function renderLineItem(ctx: RenderContext, item: RenderItem): void {
   applyStyle(ctx, item.style);
 
   // Calculate how many characters to print
+  // Use Math.ceil to ensure the line reaches the next element (corner)
+  // A slight overflow is visually better than a gap between line and corner
   const charWidth = Math.round(360 / item.style.cpi);
-  const numChars = Math.max(1, Math.floor(item.data.length / charWidth));
+  const numChars = Math.max(1, Math.ceil(item.data.length / charWidth));
 
   // Generate repeated character
   const lineStr = item.data.char.repeat(numChars);
   const encoded = encodeText(lineStr, ctx.charset, ctx.charTable);
   emit(ctx, encoded);
 
-  // Update X position
-  ctx.currentX = item.x + item.width;
+  // Update X position - CRITICAL: use actual rendered width, not allocated width
+  // This ensures the next item's position calculation is correct.
+  // Bug fix: Previously used item.width which could be larger than rendered chars,
+  // causing subsequent items to skip ESC $ positioning commands.
+  const actualRenderedWidth = numChars * charWidth;
+  ctx.currentX = item.x + actualRenderedWidth;
 }
 
 /**
@@ -601,6 +601,8 @@ const DEFAULT_RENDER_STYLE: ResolvedStyle = {
   doubleHeight: false,
   condensed: false,
   cpi: 10,
+  typeface: 0,      // ROMAN (default typeface)
+  printQuality: 1,  // LQ (letter quality)
 };
 
 /**

@@ -3,13 +3,13 @@
  *
  * Demonstrates conditional content rendering:
  * - when(callback): Show content based on function result
- * - when(spaceQuery): Show content based on space constraints
+ * - when(SpaceQuery): Show content based on space constraints
  * - fallback(node): Alternative content when condition is false
  *
  * Run: npx tsx examples/10-conditional.ts
  */
 
-import { LayoutEngine, stack, flex, text, line, spaceQuery } from '../src/index';
+import { LayoutEngine, stack, flex, text, line } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 async function main() {
@@ -20,6 +20,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(15)
@@ -59,20 +60,20 @@ async function main() {
     // SpaceQuery-based conditions
     .text('SPACEQUERY-BASED CONDITIONS', { bold: true, underline: true })
     .spacer(10)
-    .text('Using spaceQuery({ minWidth, maxWidth, minHeight, maxHeight })', { italic: true })
+    .text('Using { minWidth, maxWidth, minHeight, maxHeight }', { italic: true })
     .spacer(10)
 
     // Condition met
     .add(
       stack()
-        .when(spaceQuery({ minWidth: 500 }))
+        .when({ minWidth: 500 })
         .text('This shows because minWidth(500) is satisfied', { bold: true })
     )
 
     // Condition not met (needs more height than available)
     .add(
       stack()
-        .when(spaceQuery({ minHeight: 10000 }))
+        .when({ minHeight: 10000 })
         .text('This requires minHeight of 10000 dots')
         .fallback(
           stack()
@@ -91,7 +92,7 @@ async function main() {
     // Full details vs compact
     .add(
       stack()
-        .when(spaceQuery({ minWidth: 2000 }))
+        .when({ minWidth: 2000 })
         .add(
           flex()
             .gap(50)

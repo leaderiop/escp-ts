@@ -137,8 +137,6 @@ export type {
   LayoutNode,
   StackNode,
   FlexNode,
-  GridNode,
-  GridRowNode,
   TextNode,
   SpacerNode,
   LineNode,
@@ -154,7 +152,6 @@ export type {
   ResolvedStyle,
   ResolvedPadding,
   ResolvedMargin,
-  PageBreakHints,
   // Advanced layout types
   SpaceContext,
   SpaceQuery,
@@ -162,7 +159,8 @@ export type {
   PositionMode,
   TextOrientation,
   TextOverflow,
-  FlexWrap,
+  // NOTE: FlexWrap was removed - incompatible with printer pagination
+  // NOTE: Grid was removed - not natively supported by Yoga
   // Template/Component system types
   DataContext,
   DataCondition,
@@ -184,7 +182,6 @@ export {
   isContainerNode,
   isStackNode,
   isFlexNode,
-  isGridNode,
   isTextNode,
   isSpacerNode,
   isLineNode,
@@ -208,7 +205,6 @@ export {
   text,
   spacer,
   line,
-  spaceQuery,
   // Template/Component builders
   TemplateBuilder,
   ConditionalBuilder,
@@ -219,25 +215,13 @@ export {
   switchOn,
   each,
   type TextOptions,
-  type CellOptions,
 } from './layout/builders';
 
-// Layout system - Measure phase
-export {
-  measureNode,
-  DEFAULT_MEASURE_CONTEXT,
-  type MeasuredNode,
-  type MeasureContext,
-  type FlexLine,
-} from './layout/measure';
-
-// Layout system - Layout phase
-export {
-  layoutNode,
-  performLayout,
-  type LayoutResult,
-  type LayoutContext,
-} from './layout/layout';
+// Layout system - Layout result types (from Yoga adapter)
+export type {
+  LayoutResult,
+  LayoutContext,
+} from './layout/yoga';
 
 // Layout system - Renderer
 export {
@@ -250,14 +234,19 @@ export {
   type RenderOptions,
 } from './layout/renderer';
 
-// Layout system - Pagination
+// Layout system - Yoga Adapter (Flexbox layout engine)
 export {
-  paginateLayout,
-  createPageConfig,
-  type PageConfig,
-  type PageSegment,
-  type PaginatedLayoutResult,
-} from './layout/pagination';
+  YogaAdapter,
+  createYogaAdapter,
+  calculateYogaLayout,
+  initDefaultAdapter,
+  getDefaultAdapter,
+  resetDefaultAdapter,
+  type YogaAdapterOptions,
+  type YogaLayoutOptions,
+  type YogaLayoutContext,
+  type NodeMapping,
+} from './layout/yoga';
 
 // Layout system - Template Interpolation
 export {
@@ -307,6 +296,81 @@ export {
   type VirtualPage,
   type VirtualRenderOptions,
 } from './renderer/VirtualRenderer';
+
+// Borders module - bordered text printing
+export {
+  // Box drawing characters
+  CP437_BOX,
+  BOX_DRAWING_CODE_PAGES,
+  ASCII_BORDER_CHARS,
+  supportsBoxDrawing,
+  getSingleBorderChars,
+  getDoubleBorderChars,
+  getBoxDrawingChars,
+  getBorderCharsWithFallback,
+  type BorderCharSet,
+  // Graphics border generator
+  BORDER_GRAPHICS_CONFIG,
+  createHorizontalBorderLine,
+  createBorderCorner,
+  charsToDotsAt120DPI,
+  getGraphicsLineSpacing,
+  type BitImageData,
+  type CornerType,
+  // Border renderer
+  selectRenderMode,
+  renderBorder,
+  normalizePadding,
+  type BorderRenderMode,
+  type BorderStyle,
+  type PaddingSpec as BorderPaddingSpec,
+  type BorderRenderOptions,
+  type BorderRenderResult,
+  // High-level API
+  printBoxedText,
+  printSimpleBox,
+  printDoubleBox,
+  type BoxedTextOptions,
+} from './borders';
+
+// JSX Runtime
+export {
+  createElement,
+  Fragment,
+  jsx,
+  jsxs,
+  jsxDEV,
+  // Component functions for JSX usage
+  Stack as JStack,
+  Flex as JFlex,
+  Text as JText,
+  Spacer as JSpacer,
+  Line as JLine,
+  Template as JTemplate,
+  If as JIf,
+  Switch as JSwitch,
+  Case as JCase,
+  For as JFor,
+  Layout as JLayout,
+} from './jsx';
+
+export type {
+  NodeStyle,
+  StackProps,
+  FlexProps,
+  TextProps,
+  SpacerProps,
+  LineProps,
+  TemplateProps,
+  IfProps,
+  SwitchProps,
+  CaseProps,
+  ForProps,
+  LayoutProps,
+  FunctionComponent,
+  JSXChild,
+  JSXChildren,
+} from './jsx';
 
 // Default export
 export { LayoutEngine as default } from './layout/LayoutEngine';

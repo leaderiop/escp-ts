@@ -40,6 +40,7 @@ async function main() {
 
   const engine = new LayoutEngine({ defaultPaper: DEFAULT_PAPER });
   engine.initialize();
+  await engine.initYoga();
 
   engine.setData({
     invoice: { number: 'INV-2024-001234', date: '2024-12-15', dueDate: '2025-01-14', status: 'pending' },

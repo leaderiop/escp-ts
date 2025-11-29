@@ -38,13 +38,11 @@ import type {
 } from '../core/types';
 
 // Layout system imports
-import type { LayoutNode, WidthSpec, DataContext } from './nodes';
-import { measureNode, type MeasureContext } from './measure';
-import { performLayout } from './layout';
+import type { LayoutNode, DataContext } from './nodes';
 import { renderPageItems } from './renderer';
-import { paginateLayout, createPageConfig } from './pagination';
-import { StackBuilder, FlexBuilder, GridBuilder, stack, flex, grid } from './builders';
-import { createDataContext } from './resolver';
+import { StackBuilder, FlexBuilder, stack, flex } from './builders';
+import { createDataContext, resolveNode } from './resolver';
+import { YogaAdapter, type YogaLayoutOptions } from './yoga';
 
 /**
  * Default LQ-2090II printer profile
@@ -105,6 +103,7 @@ export class LayoutEngine {
   private pages: Page[] = [];
   private currentPageElements: LayoutElement[] = [];
   private dataContext: DataContext | undefined;
+  private yogaAdapter: YogaAdapter | null = null;
 
   constructor(options: Partial<LayoutEngineOptions> = {}) {
     this.options = { ...DEFAULT_ENGINE_OPTIONS, ...options };
@@ -112,6 +111,38 @@ export class LayoutEngine {
       paper: this.options.defaultPaper,
       font: this.options.defaultFont as FontConfig,
     });
+  }
+
+  // ==================== YOGA INITIALIZATION ====================
+
+  /**
+   * Initialize the Yoga layout engine
+   *
+   * Must be called before render(). This loads the Yoga WebAssembly
+   * module asynchronously.
+   *
+   * @returns Promise that resolves when Yoga is ready
+   *
+   * @example
+   * ```typescript
+   * const engine = new LayoutEngine();
+   * await engine.initYoga();
+   * engine.render(layout);
+   * ```
+   */
+  async initYoga(): Promise<this> {
+    if (!this.yogaAdapter) {
+      this.yogaAdapter = new YogaAdapter();
+    }
+    await this.yogaAdapter.init();
+    return this;
+  }
+
+  /**
+   * Check if Yoga is initialized and ready
+   */
+  isYogaInitialized(): boolean {
+    return this.yogaAdapter?.isInitialized() ?? false;
   }
 
   /**
@@ -856,23 +887,22 @@ export class LayoutEngine {
   // ==================== LAYOUT SYSTEM ====================
 
   /**
-   * Render a virtual layout tree with automatic pagination
+   * Render a virtual layout tree
    *
    * This is the main entry point for the layout system. It takes a
-   * layout node (built using stack(), flex(), or grid() builders) and
-   * renders it to ESC/P2 commands with automatic page breaks.
+   * layout node (built using stack() or flex() builders) and
+   * renders it to ESC/P2 commands.
    *
-   * The pagination system:
-   * - Automatically inserts form feeds when content exceeds page height
-   * - Never splits grid rows (they are atomic units)
-   * - Respects keepTogether, breakBefore, breakAfter hints
-   * - Supports widow/orphan control via minBeforeBreak/minAfterBreak
+   * Note: You must call initYoga() before render().
    *
    * @param node - The layout node to render
    * @returns this for chaining
+   * @throws Error if Yoga is not initialized
    *
    * @example
    * ```typescript
+   * const engine = new LayoutEngine();
+   * await engine.initYoga();
    * engine.render(
    *   stack()
    *     .align('center')
@@ -883,89 +913,72 @@ export class LayoutEngine {
    * ```
    */
   render(node: LayoutNode): this {
-    const state = this.stateManager.getState();
-
-    // Create measure context from current state
-    const measureCtx: MeasureContext = {
-      availableWidth: getPrintableWidth(state.paper),
-      availableHeight: getPageHeight(state.paper) - state.y,
-      lineSpacing: state.lineSpacing,
-      interCharSpace: state.interCharSpace,
-      style: {
-        bold: state.font.style.bold,
-        italic: state.font.style.italic,
-        underline: state.font.style.underline,
-        doubleStrike: state.font.style.doubleStrike,
-        doubleWidth: state.font.style.doubleWidth,
-        doubleHeight: state.font.style.doubleHeight,
-        condensed: state.font.style.condensed,
-        cpi: state.font.cpi,
-      },
-      // Only include dataContext if it's defined (for exactOptionalPropertyTypes)
-      ...(this.dataContext && { dataContext: this.dataContext }),
-    };
-
-    // Phase 1: Measure
-    const measured = measureNode(node, measureCtx, measureCtx.style);
-
-    // Phase 2: Layout (assign positions)
-    const layoutResult = performLayout(
-      measured,
-      state.x,
-      state.y,
-      measureCtx.availableWidth,
-      measureCtx.availableHeight
-    );
-
-    // Phase 3: Pagination
-    const pageConfig = createPageConfig(
-      getPageHeight(state.paper),
-      state.paper.margins.top,
-      state.paper.margins.bottom
-    );
-    const paginated = paginateLayout(layoutResult, pageConfig);
-
-    // Phase 4: Render each page with form feeds between
-    let finalY = state.y;
-
-    for (let pageIdx = 0; pageIdx < paginated.pages.length; pageIdx++) {
-      const page = paginated.pages[pageIdx];
-      if (!page) continue;
-
-      // Emit form feed before subsequent pages
-      if (pageIdx > 0) {
-        this.emit(CommandBuilder.formFeed());
-        this.stateManager.formFeed();
-
-        // Save completed page
-        this.pages.push({
-          number: this.pages.length,
-          elements: this.currentPageElements,
-          size: {
-            width: getPageWidth(state.paper),
-            height: getPageHeight(state.paper),
-          },
-        });
-        this.currentPageElements = [];
-      }
-
-      // Render all items on this page together in a single context
-      // This is critical for maintaining printer head position across items
-      const renderResult = renderPageItems(page.items, {
-        startX: state.paper.margins.left,
-        startY: page.startY,
-        charset: state.internationalCharset,
-        charTable: state.charTable,
-        lineSpacing: state.lineSpacing,
-        initialStyle: measureCtx.style,
-      });
-
-      this.emit(renderResult.commands);
-      finalY = renderResult.finalY;
+    // Ensure Yoga is initialized
+    if (!this.yogaAdapter?.isInitialized()) {
+      throw new Error('Yoga must be initialized before render(). Call initYoga() first.');
     }
 
+    const state = this.stateManager.getState();
+
+    // Resolve template nodes if data context is set
+    // This transforms TemplateNode, ConditionalNode, SwitchNode, EachNode
+    // into static nodes before layout calculation
+    let resolvedNode: LayoutNode = node;
+    if (this.dataContext) {
+      const resolved = resolveNode(node, this.dataContext);
+      if (resolved === null) {
+        // Node resolved to nothing (e.g., false conditional with no fallback)
+        // Return early without rendering anything
+        return this;
+      }
+      resolvedNode = resolved;
+    }
+
+    // Create style context from current state
+    const styleCtx = {
+      bold: state.font.style.bold,
+      italic: state.font.style.italic,
+      underline: state.font.style.underline,
+      doubleStrike: state.font.style.doubleStrike,
+      doubleWidth: state.font.style.doubleWidth,
+      doubleHeight: state.font.style.doubleHeight,
+      condensed: state.font.style.condensed,
+      cpi: state.font.cpi,
+      typeface: state.font.typeface,
+      printQuality: state.font.quality,
+    };
+
+    // Layout parameters
+    const availableWidth = getPrintableWidth(state.paper);
+    const availableHeight = getPageHeight(state.paper) - state.y;
+
+    // Yoga-based layout calculation
+    const yogaOptions: YogaLayoutOptions = {
+      availableWidth,
+      availableHeight,
+      lineSpacing: state.lineSpacing,
+      interCharSpace: state.interCharSpace,
+      style: styleCtx,
+      startX: state.x,
+      startY: state.y,
+    };
+
+    const layoutResult = this.yogaAdapter.calculateLayout(resolvedNode, yogaOptions);
+
+    // Render the layout
+    const renderResult = renderPageItems([layoutResult], {
+      startX: state.paper.margins.left,
+      startY: state.y,
+      charset: state.internationalCharset,
+      charTable: state.charTable,
+      lineSpacing: state.lineSpacing,
+      initialStyle: styleCtx,
+    });
+
+    this.emit(renderResult.commands);
+
     // Update position to after the layout
-    this.stateManager.moveTo(state.paper.margins.left, finalY);
+    this.stateManager.moveTo(state.paper.margins.left, renderResult.finalY);
 
     return this;
   }
@@ -1005,25 +1018,6 @@ export class LayoutEngine {
    */
   createFlex(): FlexBuilder {
     return flex();
-  }
-
-  /**
-   * Create a grid builder for table layouts
-   *
-   * @param columns - Column width specifications
-   *
-   * @example
-   * ```typescript
-   * engine.render(
-   *   engine.grid([200, 'fill', 150])
-   *     .cell('Qty').cell('Item').cell('Price').row()
-   *     .cell('5').cell('Widget').cell('$10').row()
-   *     .build()
-   * );
-   * ```
-   */
-  createGrid(columns: WidthSpec[]): GridBuilder {
-    return grid(columns);
   }
 
   // ==================== DATA CONTEXT ====================

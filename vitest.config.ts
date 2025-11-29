@@ -3,11 +3,11 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
-    include: ['src/**/*.test.ts', '__TESTS__/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', '__TESTS__/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/example.ts', 'src/preview.ts'],
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/example.ts', 'src/preview.ts'],
       thresholds: {
         statements: 80,
         branches: 75,
@@ -15,5 +15,8 @@ export default defineConfig({
         lines: 80,
       },
     },
+  },
+  esbuild: {
+    jsx: 'automatic',
   },
 });

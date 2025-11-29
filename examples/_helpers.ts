@@ -3,11 +3,14 @@
  * @internal - Not meant to be run directly
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import sharp from 'sharp';
-import { VirtualRenderer, type VirtualPage } from '../src/renderer/VirtualRenderer';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+import {
+  VirtualRenderer,
+  type VirtualPage,
+} from "../src/renderer/VirtualRenderer";
 
 // ============================================================
 // CONSTANTS
@@ -16,17 +19,19 @@ import { VirtualRenderer, type VirtualPage } from '../src/renderer/VirtualRender
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const OUTPUT_DIR = path.join(__dirname, '..', 'output');
+export const OUTPUT_DIR = path.join(__dirname, "..", "output");
 
 // CUPS Custom.1069x615 page size
 // lpoptions -p EPSON_LQ_2090II -o PageSize=Custom.1069x615
 // 1069x615 points (1 point = 1/72 inch)
 const PAPER_WIDTH_POINTS = 1069;
 const PAPER_HEIGHT_POINTS = 615;
-const PAPER_WIDTH_INCHES = PAPER_WIDTH_POINTS / 72;   // 14.847 inches
+const PAPER_WIDTH_INCHES = PAPER_WIDTH_POINTS / 72; // 14.847 inches
 const PAPER_HEIGHT_INCHES = PAPER_HEIGHT_POINTS / 72; // 8.542 inches
 const PRINTER_MAX_WIDTH_INCHES = 13.6; // LQ-2090II max print width
-const SIDE_MARGIN = Math.round(((PAPER_WIDTH_INCHES - PRINTER_MAX_WIDTH_INCHES) / 2) * 360); // ~225 dots
+const SIDE_MARGIN = Math.round(
+  ((PAPER_WIDTH_INCHES - PRINTER_MAX_WIDTH_INCHES) / 2) * 360
+); // ~225 dots
 
 // Default paper configuration (matches DEFAULT_ENGINE_OPTIONS.defaultPaper)
 export const DEFAULT_PAPER = {
@@ -44,15 +49,18 @@ export const DEFAULT_PAPER = {
  * Convert a VirtualPage bitmap to ASCII art
  * Focuses on content area (top-left portion of page)
  */
-export function pageToAscii(page: VirtualPage, options: {
-  width?: number;
-  height?: number;
-  chars?: string;
-  contentHeight?: number;
-} = {}): string {
+export function pageToAscii(
+  page: VirtualPage,
+  options: {
+    width?: number;
+    height?: number;
+    chars?: string;
+    contentHeight?: number;
+  } = {}
+): string {
   const targetWidth = options.width ?? 80;
   const targetHeight = options.height ?? 40;
-  const chars = options.chars ?? ' .:-=+*#%@';
+  const chars = options.chars ?? " .:-=+*#%@";
 
   const contentHeight = options.contentHeight ?? Math.min(page.height, 1000);
   const contentWidth = Math.min(page.width, Math.floor(contentHeight * 2));
@@ -63,7 +71,7 @@ export function pageToAscii(page: VirtualPage, options: {
   const lines: string[] = [];
 
   for (let ty = 0; ty < targetHeight; ty++) {
-    let line = '';
+    let line = "";
     for (let tx = 0; tx < targetWidth; tx++) {
       const startX = Math.floor(tx * scaleX);
       const startY = Math.floor(ty * scaleY);
@@ -85,7 +93,7 @@ export function pageToAscii(page: VirtualPage, options: {
     lines.push(line);
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
@@ -110,7 +118,10 @@ export function savePrnFile(commands: Uint8Array, filename: string): string {
 /**
  * Save PNG file from VirtualPage using sharp
  */
-export async function savePngFile(page: VirtualPage, filename: string): Promise<string> {
+export async function savePngFile(
+  page: VirtualPage,
+  filename: string
+): Promise<string> {
   ensureOutputDir();
   const filepath = path.join(OUTPUT_DIR, `${filename}.png`);
 
@@ -144,14 +155,19 @@ export async function renderPreview(
   commands: Uint8Array,
   title: string,
   filename: string,
-  options: { width?: number; height?: number; paper?: typeof DEFAULT_PAPER } = {}
+  options: {
+    width?: number;
+    height?: number;
+    paper?: typeof DEFAULT_PAPER;
+  } = {}
 ): Promise<void> {
   const paper = options.paper ?? DEFAULT_PAPER;
 
-  const renderer = new VirtualRenderer(
-    paper,
-    { horizontalDpi: 360, verticalDpi: 360, scale: 1 }
-  );
+  const renderer = new VirtualRenderer(paper, {
+    horizontalDpi: 360,
+    verticalDpi: 360,
+    scale: 1,
+  });
 
   renderer.render(commands);
   const pages = renderer.getPages();
@@ -167,9 +183,9 @@ export async function renderPreview(
     return;
   }
 
-  console.log(`\n${'='.repeat(80)}`);
+  console.log(`\n${"=".repeat(80)}`);
   console.log(`${title}`);
-  console.log(`${'='.repeat(80)}`);
+  console.log(`${"=".repeat(80)}`);
 
   // Save PRN file
   const prnPath = savePrnFile(commands, filename);
@@ -180,19 +196,24 @@ export async function renderPreview(
     const pngPath = await savePngFile(page, filename);
     console.log(`PNG: ${pngPath} (${page.width}x${page.height})`);
   } catch (e) {
-    console.log(`PNG: Could not save (sharp not available)`);
+    console.log(`PNG: Could not save (sharp not available)`, e);
   }
 
   // Show ASCII preview
   console.log(`\nPreview:`);
-  console.log(pageToAscii(page, { width: options.width ?? 80, height: options.height ?? 30 }));
+  console.log(
+    pageToAscii(page, {
+      width: options.width ?? 80,
+      height: options.height ?? 30,
+    })
+  );
 }
 
 /**
  * Simple helper to print a section header
  */
 export function printSection(title: string): void {
-  console.log(`\n${'='.repeat(60)}`);
+  console.log(`\n${"=".repeat(60)}`);
   console.log(`  ${title}`);
-  console.log(`${'='.repeat(60)}\n`);
+  console.log(`${"=".repeat(60)}\n`);
 }

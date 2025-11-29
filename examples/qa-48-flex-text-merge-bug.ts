@@ -11,7 +11,7 @@
  * Actual: "FIRSTSECOND" printed as one string
  */
 
-import { LayoutEngine, stack, flex, grid, text } from '../src/index';
+import { LayoutEngine, stack, flex, text } from '../src/index';
 import { printSection } from './_helpers';
 
 const ZERO_MARGIN_PAPER = {
@@ -45,6 +45,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     const layout = flex()
       .gap(50)  // 50 dot gap between items
@@ -75,6 +76,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     const layout = flex()
       .gap(50)
@@ -98,6 +100,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     const layout = flex()
       .gap(50)
@@ -121,6 +124,7 @@ async function main() {
   {
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     const layout = flex()
       .width(600)
@@ -176,6 +180,7 @@ Let me check the layout calculation...
     // For now, let's just verify the gap is working
     const engine = new LayoutEngine({ defaultPaper: ZERO_MARGIN_PAPER });
     engine.initialize();
+  await engine.initYoga();
 
     // Use explicit gap
     const layout = flex()

@@ -16,7 +16,7 @@
  * Run: npx tsx examples/qa-52-margin-padding-stress.ts
  */
 
-import { LayoutEngine, stack, flex, grid } from "../src/index";
+import { LayoutEngine, stack, flex } from "../src/index";
 import { renderPreview, DEFAULT_PAPER, printSection } from "./_helpers";
 
 async function main() {
@@ -27,6 +27,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(10)

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { LayoutEngine, DEFAULT_ENGINE_OPTIONS, LQ_2090II_PROFILE } from './LayoutEngine';
 import { ValidationError } from '../core/errors';
-import { stack, flex, grid } from './builders';
+import { stack, flex } from './builders';
 import { TYPEFACE, PRINT_QUALITY, JUSTIFICATION } from '../core/constants';
 
 describe('LayoutEngine', () => {
@@ -421,8 +421,9 @@ describe('LayoutEngine', () => {
   // ==================== LAYOUT SYSTEM ====================
 
   describe('render', () => {
-    it('renders a simple stack layout', () => {
+    it('renders a simple stack layout', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = stack().text('Hello').text('World').build();
@@ -431,8 +432,9 @@ describe('LayoutEngine', () => {
       expect(engine.getOutput().length).toBeGreaterThan(2);
     });
 
-    it('renders a flex layout', () => {
+    it('renders a flex layout', async () => {
       const engine = new LayoutEngine();
+      await engine.initYoga();
       engine.initialize();
 
       const layout = flex().text('Left').text('Right').build();
@@ -440,19 +442,19 @@ describe('LayoutEngine', () => {
       expect(() => engine.render(layout)).not.toThrow();
     });
 
-    it('renders a grid layout', () => {
+    it('returns this for chaining', async () => {
       const engine = new LayoutEngine();
-      engine.initialize();
-
-      const layout = grid([200, 200]).cell('A').cell('B').row().build();
-
-      expect(() => engine.render(layout)).not.toThrow();
-    });
-
-    it('returns this for chaining', () => {
-      const engine = new LayoutEngine();
+      await engine.initYoga();
       const result = engine.render(stack().text('Test').build());
       expect(result).toBe(engine);
+    });
+
+    it('throws error if Yoga is not initialized', () => {
+      const engine = new LayoutEngine();
+      engine.initialize();
+      const layout = stack().text('Test').build();
+
+      expect(() => engine.render(layout)).toThrow('Yoga must be initialized');
     });
   });
 
@@ -469,14 +471,6 @@ describe('LayoutEngine', () => {
       const engine = new LayoutEngine();
       const builder = engine.createFlex();
       expect(builder.build().type).toBe('flex');
-    });
-  });
-
-  describe('createGrid', () => {
-    it('returns a GridBuilder', () => {
-      const engine = new LayoutEngine();
-      const builder = engine.createGrid([100, 200]);
-      expect(builder.build().type).toBe('grid');
     });
   });
 

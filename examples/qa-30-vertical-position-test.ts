@@ -52,6 +52,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   // Build layout - place text at different Y positions with same X
   let layoutBuilder = stack().padding(0).gap(0);

@@ -9,7 +9,7 @@
  * Run: npx tsx examples/15-auto-margins.ts
  */
 
-import { LayoutEngine, stack, flex, grid, text, line } from '../src/index';
+import { LayoutEngine, stack, flex, text, line } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 async function main() {
@@ -20,6 +20,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(20)

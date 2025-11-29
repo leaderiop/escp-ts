@@ -5,6 +5,7 @@
 import {
   PRINT_QUALITY,
   TYPEFACE,
+  TYPEFACE_ALIASES,
   INTERNATIONAL_CHARSET,
   CHAR_TABLE,
   JUSTIFICATION,
@@ -104,6 +105,58 @@ export type PrintQuality = ValueOf<typeof PRINT_QUALITY>;
 
 // Typeface type
 export type Typeface = ValueOf<typeof TYPEFACE>;
+
+/**
+ * Typeface value - accepts numeric ID or string alias
+ * Examples: TYPEFACE.ROMAN, 0, 'roman', 'sans-serif', 'courier'
+ */
+export type TypefaceValue = Typeface | string;
+
+/**
+ * Print quality value for style property
+ * 'draft' = 0 (fast, lower quality)
+ * 'lq' = 1 (letter quality, slower)
+ */
+export type PrintQualityValue = 'draft' | 'lq' | 0 | 1;
+
+/**
+ * Resolve a typeface value (string or number) to numeric ID
+ * @param value - String alias or numeric typeface ID
+ * @returns Numeric typeface ID
+ * @throws Error if string alias is not recognized
+ */
+export function resolveTypefaceValue(value: TypefaceValue): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  // Normalize: lowercase, remove underscores (handled by aliases)
+  const normalized = value.toLowerCase().replace(/_/g, '-');
+  const resolved = TYPEFACE_ALIASES[normalized];
+  if (resolved === undefined) {
+    // Also check without hyphens
+    const noHyphens = normalized.replace(/-/g, '');
+    const resolvedNoHyphens = TYPEFACE_ALIASES[noHyphens];
+    if (resolvedNoHyphens === undefined) {
+      throw new Error(
+        `Unknown typeface: "${value}". Valid values: ${Object.keys(TYPEFACE_ALIASES).join(', ')}`
+      );
+    }
+    return resolvedNoHyphens;
+  }
+  return resolved;
+}
+
+/**
+ * Resolve a print quality value to numeric ID
+ * @param value - 'draft', 'lq', 0, or 1
+ * @returns Numeric print quality (0 = draft, 1 = LQ)
+ */
+export function resolvePrintQualityValue(value: PrintQualityValue): 0 | 1 {
+  if (typeof value === 'number') {
+    return value as 0 | 1;
+  }
+  return value === 'draft' ? 0 : 1;
+}
 
 // International charset type
 export type InternationalCharset = ValueOf<typeof INTERNATIONAL_CHARSET>;

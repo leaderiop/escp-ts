@@ -31,6 +31,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   // Simple layout to generate predictable byte sequences
   // Each element placed at calculated positions for verification

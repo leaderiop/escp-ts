@@ -4,13 +4,13 @@
  * Demonstrates margin support for layout nodes:
  * - Uniform margins (single number)
  * - Per-side margins (object with top/right/bottom/left)
- * - Margins on different node types (stack, flex, grid, text)
+ * - Margins on different node types (stack, flex, text)
  * - Difference between padding and margin
  *
  * Run: npx tsx examples/13-margins.ts
  */
 
-import { LayoutEngine, stack, flex, grid } from "../src/index";
+import { LayoutEngine, stack, flex } from "../src/index";
 import { renderPreview, DEFAULT_PAPER, printSection } from "./_helpers";
 
 async function main() {
@@ -21,6 +21,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const layout = stack()
     .gap(20)
@@ -114,28 +115,36 @@ async function main() {
     )
     .spacer(30)
 
-    // Margins in grid
-    .text("MARGINS IN GRID", { bold: true, underline: true })
+    // Margins in table (using flex rows)
+    .text("MARGINS IN TABLE", { bold: true, underline: true })
     .spacer(10)
-    .text("Grid with margin around the entire table:")
+    .text("Table with margin around the entire structure:")
     .spacer(10)
     .add(
-      grid([150, 150, 150])
+      stack()
         .margin({ top: 10, right: 20, bottom: 10, left: 20 })
-        .columnGap(10)
-        .rowGap(5)
-        .cell("Header 1", { bold: true })
-        .cell("Header 2", { bold: true })
-        .cell("Header 3", { bold: true })
-        .headerRow()
-        .cell("A1")
-        .cell("A2")
-        .cell("A3")
-        .row()
-        .cell("B1")
-        .cell("B2")
-        .cell("B3")
-        .row()
+        .gap(5)
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width(150).text("Header 1", { bold: true }))
+            .add(stack().width(150).text("Header 2", { bold: true }))
+            .add(stack().width(150).text("Header 3", { bold: true }))
+        )
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width(150).text("A1"))
+            .add(stack().width(150).text("A2"))
+            .add(stack().width(150).text("A3"))
+        )
+        .add(
+          flex()
+            .gap(10)
+            .add(stack().width(150).text("B1"))
+            .add(stack().width(150).text("B2"))
+            .add(stack().width(150).text("B3"))
+        )
     )
     .spacer(30)
 

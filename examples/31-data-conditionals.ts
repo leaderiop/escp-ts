@@ -35,6 +35,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   // Set up sample data with various user scenarios
   engine.setData({

@@ -6,6 +6,9 @@
  * rendered to ESC/P2 printer commands.
  */
 
+import type { TypefaceValue, PrintQualityValue } from '../core/types';
+import { resolveTypefaceValue, resolvePrintQualityValue } from '../core/types';
+
 // ==================== WIDTH/HEIGHT SPECIFICATIONS ====================
 
 /**
@@ -149,6 +152,10 @@ export interface StyleProps {
   condensed?: boolean;
   /** Characters per inch (10, 12, 15, 17, 20) */
   cpi?: number;
+  /** Typeface/font selection - number or string like 'roman', 'courier', 'sans-serif' */
+  typeface?: TypefaceValue;
+  /** Print quality: 'draft' (fast) or 'lq' (letter quality) */
+  printQuality?: PrintQualityValue;
 }
 
 /**
@@ -163,6 +170,10 @@ export interface ResolvedStyle {
   doubleHeight: boolean;
   condensed: boolean;
   cpi: number;
+  /** Resolved typeface ID (always numeric after resolution) */
+  typeface: number;
+  /** Resolved print quality: 0=draft, 1=lq */
+  printQuality: number;
 }
 
 /**
@@ -177,25 +188,9 @@ export const DEFAULT_STYLE: ResolvedStyle = {
   doubleHeight: false,
   condensed: false,
   cpi: 10,
+  typeface: 0,      // ROMAN (default typeface)
+  printQuality: 1,  // LQ (letter quality, default)
 };
-
-// ==================== PAGINATION HINTS ====================
-
-/**
- * Page break hint properties for controlling pagination behavior
- */
-export interface PageBreakHints {
-  /** Force a page break before this node */
-  breakBefore?: boolean;
-  /** Force a page break after this node */
-  breakAfter?: boolean;
-  /** Keep this node and its children on the same page if possible */
-  keepTogether?: boolean;
-  /** Minimum number of children before allowing a page break (orphan control) */
-  minBeforeBreak?: number;
-  /** Minimum number of children after a page break (widow control) */
-  minAfterBreak?: number;
-}
 
 // ==================== CONDITIONAL CONTENT ====================
 
@@ -303,7 +298,7 @@ export type TextOverflow = 'visible' | 'clip' | 'ellipsis';
 /**
  * Base properties shared by all layout nodes
  */
-export interface LayoutNodeBase extends StyleProps, PageBreakHints {
+export interface LayoutNodeBase extends StyleProps {
   /** Optional identifier for debugging/tracking */
   id?: string;
   /** Width specification */
@@ -324,6 +319,14 @@ export interface LayoutNodeBase extends StyleProps, PageBreakHints {
   minHeight?: number;
   /** Maximum height in dots */
   maxHeight?: number;
+
+  // ===== FLEX PROPERTIES =====
+  /** Flex grow factor - how much this item should grow relative to siblings */
+  flexGrow?: number;
+  /** Flex shrink factor - how much this item should shrink relative to siblings */
+  flexShrink?: number;
+  /** Flex basis - initial size before grow/shrink is applied */
+  flexBasis?: number;
 
   // ===== POSITIONING =====
   /** Positioning mode: 'static' (default), 'relative', or 'absolute' */
@@ -367,14 +370,10 @@ export interface StackNode extends LayoutNodeBase {
 /**
  * Flex node - horizontal row with flexible distribution
  * Similar to CSS flexbox but simplified for printer layouts
+ *
+ * NOTE: Flex-wrap was removed because it's incompatible with printer pagination.
+ * For multi-line layouts, use Stack with direction='column' or Grid.
  */
-/**
- * Flex wrap mode
- * - 'nowrap': All items stay on one line (default)
- * - 'wrap': Items wrap to new lines when they don't fit
- */
-export type FlexWrap = 'nowrap' | 'wrap';
-
 export interface FlexNode extends LayoutNodeBase {
   type: 'flex';
   /** Gap between children in dots */
@@ -383,45 +382,8 @@ export interface FlexNode extends LayoutNodeBase {
   justify?: JustifyContent;
   /** Vertical alignment of items */
   alignItems?: VAlign;
-  /** Whether to wrap items onto multiple lines */
-  wrap?: FlexWrap;
-  /** Gap between rows when wrapping */
-  rowGap?: number;
   /** Child nodes */
   children: LayoutNode[];
-}
-
-/**
- * Grid node - table-like layout with columns and rows
- */
-export interface GridNode extends LayoutNodeBase {
-  type: 'grid';
-  /** Column width specifications */
-  columns: WidthSpec[];
-  /** Gap between columns in dots */
-  columnGap?: number;
-  /** Gap between rows in dots */
-  rowGap?: number;
-  /** Row definitions containing cells */
-  rows: GridRowNode[];
-  /** Default overflow behavior for cells: 'visible', 'clip' (default), or 'ellipsis' */
-  cellOverflow?: TextOverflow;
-}
-
-/**
- * A row in a grid, containing cells
- */
-export interface GridRowNode extends StyleProps {
-  /** Cells in this row (should match column count) */
-  cells: LayoutNode[];
-  /** Fixed row height in dots (auto if not specified) */
-  height?: number | undefined;
-  /** Whether this is a header row (affects styling) */
-  isHeader?: boolean | undefined;
-  /** Keep this row with the next row on the same page */
-  keepWithNext?: boolean | undefined;
-  /** Force a page break before this row */
-  breakBefore?: boolean | undefined;
 }
 
 // ==================== LEAF NODES ====================
@@ -552,7 +514,6 @@ export interface EachNode extends LayoutNodeBase {
 export type LayoutNode =
   | StackNode
   | FlexNode
-  | GridNode
   | TextNode
   | SpacerNode
   | LineNode
@@ -564,8 +525,8 @@ export type LayoutNode =
 /**
  * Type guard to check if a node is a container (has children)
  */
-export function isContainerNode(node: LayoutNode): node is StackNode | FlexNode | GridNode {
-  return node.type === 'stack' || node.type === 'flex' || node.type === 'grid';
+export function isContainerNode(node: LayoutNode): node is StackNode | FlexNode {
+  return node.type === 'stack' || node.type === 'flex';
 }
 
 /**
@@ -580,13 +541,6 @@ export function isStackNode(node: LayoutNode): node is StackNode {
  */
 export function isFlexNode(node: LayoutNode): node is FlexNode {
   return node.type === 'flex';
-}
-
-/**
- * Type guard to check if a node is a grid node
- */
-export function isGridNode(node: LayoutNode): node is GridNode {
-  return node.type === 'grid';
 }
 
 /**
@@ -726,5 +680,11 @@ export function resolveStyle(node: StyleProps, parentStyle: ResolvedStyle): Reso
     doubleHeight: node.doubleHeight ?? parentStyle.doubleHeight,
     condensed: node.condensed ?? parentStyle.condensed,
     cpi: node.cpi ?? parentStyle.cpi,
+    typeface: node.typeface !== undefined
+      ? resolveTypefaceValue(node.typeface)
+      : parentStyle.typeface,
+    printQuality: node.printQuality !== undefined
+      ? resolvePrintQualityValue(node.printQuality)
+      : parentStyle.printQuality,
   };
 }

@@ -13,7 +13,6 @@ import {
   DEFAULT_STYLE,
   type StackNode,
   type FlexNode,
-  type GridNode,
   type TextNode,
   type SpacerNode,
   type LineNode,
@@ -31,11 +30,6 @@ describe('nodes', () => {
 
     it('returns true for flex nodes', () => {
       const node: FlexNode = { type: 'flex', children: [] };
-      expect(isContainerNode(node)).toBe(true);
-    });
-
-    it('returns true for grid nodes', () => {
-      const node: GridNode = { type: 'grid', columns: [], rows: [] };
       expect(isContainerNode(node)).toBe(true);
     });
 

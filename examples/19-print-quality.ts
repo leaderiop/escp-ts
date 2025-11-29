@@ -8,7 +8,7 @@
  * Run: npx tsx examples/19-print-quality.ts
  */
 
-import { LayoutEngine, PRINT_QUALITY, TYPEFACE, stack, flex, grid, line } from '../src/index';
+import { LayoutEngine, PRINT_QUALITY, TYPEFACE, stack, flex, line } from '../src/index';
 import { renderPreview, DEFAULT_PAPER, printSection } from './_helpers';
 
 async function main() {
@@ -19,6 +19,7 @@ async function main() {
   });
 
   engine.initialize();
+  await engine.initYoga();
 
   const sampleText = 'The quick brown fox jumps over the lazy dog. 0123456789';
   const sampleNumbers = 'Amount: $1,234.56 | Qty: 100 | Total: $123,456.00';
