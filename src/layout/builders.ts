@@ -322,8 +322,8 @@ export class StackBuilder {
   }
 
   /** Add any layout node or builder as a child */
-  add(child: LayoutNode | StackBuilder | FlexBuilder): this {
-    if (child instanceof StackBuilder || child instanceof FlexBuilder) {
+  add(child: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    if (child instanceof StackBuilder || child instanceof FlexBuilder || child instanceof GridBuilder) {
       this.node.children.push(child.build());
     } else {
       this.node.children.push(child);
@@ -615,8 +615,8 @@ export class FlexBuilder {
   }
 
   /** Add any layout node or builder as a child */
-  add(child: LayoutNode | StackBuilder | FlexBuilder): this {
-    if (child instanceof StackBuilder || child instanceof FlexBuilder) {
+  add(child: LayoutNode | StackBuilder | FlexBuilder | GridBuilder): this {
+    if (child instanceof StackBuilder || child instanceof FlexBuilder || child instanceof GridBuilder) {
       this.node.children.push(child.build());
     } else {
       this.node.children.push(child);
@@ -1137,4 +1137,161 @@ export function switchOn(path: string): SwitchBuilder {
  */
 export function each(itemsPath: string): EachBuilder {
   return new EachBuilder(itemsPath);
+}
+
+// ============================================================================
+// GridBuilder - Simple grid layout using Flex rows
+// ============================================================================
+
+interface GridCellOptions {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  align?: 'left' | 'center' | 'right';
+  cpi?: 10 | 12 | 15;
+}
+
+interface GridCellData {
+  content: string;
+  options: GridCellOptions | null;
+}
+
+/**
+ * GridBuilder creates a simple grid layout using stacked Flex rows.
+ *
+ * Note: This is a compatibility layer since native CSS Grid is not supported
+ * by the Yoga layout engine. The grid is rendered as stacked flex rows.
+ *
+ * @example
+ * ```typescript
+ * grid([100, 'fill', 150])
+ *   .columnGap(20)
+ *   .rowGap(5)
+ *   .cell('Name', { bold: true })
+ *   .cell('Description', { bold: true })
+ *   .cell('Price', { bold: true, align: 'right' })
+ *   .headerRow()
+ *   .cell('Widget').cell('A useful widget').cell('$10.00', { align: 'right' }).row()
+ *   .build()
+ * ```
+ */
+export class GridBuilder {
+  private columnWidths: (number | 'fill')[];
+  private colGap: number = 0;
+  private rGap: number = 0;
+  private rows: GridCellData[][] = [];
+  private currentRow: GridCellData[] = [];
+
+  constructor(columnWidths: (number | 'fill')[]) {
+    this.columnWidths = columnWidths;
+  }
+
+  /** Set gap between columns */
+  columnGap(gap: number): this {
+    this.colGap = gap;
+    return this;
+  }
+
+  /** Set gap between rows */
+  rowGap(gap: number): this {
+    this.rGap = gap;
+    return this;
+  }
+
+  /** Add a cell to the current row */
+  cell(content: string, options?: GridCellOptions): this {
+    this.currentRow.push({ content, options: options ?? null });
+    return this;
+  }
+
+  /** Finalize current row as header row */
+  headerRow(): this {
+    this.rows.push([...this.currentRow]);
+    this.currentRow = [];
+    return this;
+  }
+
+  /** Finalize current row as data row */
+  row(): this {
+    this.rows.push([...this.currentRow]);
+    this.currentRow = [];
+    return this;
+  }
+
+  /** Build the grid as a StackNode */
+  build(): StackNode {
+    const rowNodes: FlexNode[] = this.rows.map((row) => {
+      const children: StackNode[] = row.map((cell, colIndex) => {
+        const width = this.columnWidths[colIndex] ?? 'auto';
+        const opts = cell.options;
+
+        const textNode: TextNode = {
+          type: 'text',
+          content: cell.content,
+        };
+
+        // Only set properties if they have a value
+        if (opts?.bold) textNode.bold = opts.bold;
+        if (opts?.italic) textNode.italic = opts.italic;
+        if (opts?.underline) textNode.underline = opts.underline;
+        if (opts?.cpi) textNode.cpi = opts.cpi;
+
+        // Wrap in stack to control width and alignment
+        const wrapperNode: StackNode = {
+          type: 'stack',
+          children: [textNode],
+          flexGrow: width === 'fill' ? 1 : 0,
+          flexShrink: width === 'fill' ? 1 : 0,
+          align: opts?.align ?? 'left',
+        };
+
+        // Only set width if it's a fixed number
+        if (typeof width === 'number') {
+          wrapperNode.width = width;
+        }
+
+        return wrapperNode;
+      });
+
+      const flexNode: FlexNode = {
+        type: 'flex',
+        children,
+        gap: this.colGap,
+        width: '100%',
+      };
+
+      return flexNode;
+    });
+
+    return {
+      type: 'stack',
+      children: rowNodes,
+      gap: this.rGap,
+      width: '100%',
+    };
+  }
+}
+
+/**
+ * Create a grid layout with specified column widths.
+ *
+ * @param columnWidths - Array of column widths (number for fixed dots, 'fill' for flexible)
+ * @returns GridBuilder instance
+ *
+ * @example
+ * ```typescript
+ * grid([60, 'fill', 100, 120])
+ *   .columnGap(20)
+ *   .rowGap(5)
+ *   .cell('QTY', { bold: true, align: 'center' })
+ *   .cell('DESCRIPTION', { bold: true })
+ *   .cell('UNIT PRICE', { bold: true, align: 'right' })
+ *   .cell('TOTAL', { bold: true, align: 'right' })
+ *   .headerRow()
+ *   .cell('5').cell('Widget').cell('$10.00').cell('$50.00').row()
+ *   .build()
+ * ```
+ */
+export function grid(columnWidths: (number | 'fill')[]): GridBuilder {
+  return new GridBuilder(columnWidths);
 }

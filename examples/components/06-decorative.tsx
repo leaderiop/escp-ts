@@ -9,7 +9,7 @@
 
 import { LayoutEngine } from "../../src";
 import { Stack, Flex, Layout, Text, Line, Spacer } from "../../src/jsx";
-import { Divider, Border, Box, BoxedText, Panel, Section } from "../../src/jsx/components";
+import { Divider, Border, BoxedText, Panel, Section } from "../../src/jsx/components";
 import { Badge, Label } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 

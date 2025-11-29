@@ -198,8 +198,10 @@ export {
 export {
   StackBuilder,
   FlexBuilder,
+  GridBuilder,
   stack,
   flex,
+  grid,
   text,
   spacer,
   line,
