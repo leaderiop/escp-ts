@@ -130,12 +130,12 @@ export function BoxedText(props: BoxedTextProps): LayoutNode {
         ],
       }),
       // Content row: vertical border + content (with padding) + vertical border
-      // Use a single Stack with fill width to match border row structure
+      // Use flexGrow/flexShrink/flexBasis to match Line behavior in border rows
       Flex({
         children: [
           Text({ children: chars.vertical }),
           Stack({
-            style: { width: 'fill' },
+            style: { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
             children: [
               Text({ children: paddingSpaces + contentText + paddingSpaces }),
             ],
