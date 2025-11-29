@@ -165,27 +165,33 @@ function collectRenderItems(
   switch (node.type) {
     case 'text': {
       const textNode = node as TextNode;
-      const overflow = textNode.overflow ?? 'visible';
+      // Default to 'clip' for flex-constrained text to prevent overlaps
+      // Use 'visible' only when explicitly requested
+      const overflow = textNode.overflow ?? 'clip';
+
+      // Determine if text should be clipped based on context
+      // isWidthConstrained comes from Yoga builder and indicates:
+      // - true: text is in flex row or has explicit width - must clip
+      // - false/undefined: text is in stack column - allow overflow
+      const shouldClip = result.isWidthConstrained === true;
 
       // Determine the constraint width for truncation
-      // Only apply constraints for explicit widths, not auto-width text
-      let constraintWidth = 0; // No constraint by default for auto-width text
+      // Only use constraint if shouldClip is true
+      let constraintWidth = 0;
       const boundaryWidth = result.width; // For alignment calculations
 
-      if (typeof textNode.width === 'number') {
-        // Explicit width is a hard constraint
-        constraintWidth = textNode.width;
-
-        // Subtract padding from explicit width constraint
-        if (textNode.padding) {
-          const padding = typeof textNode.padding === 'number'
-            ? textNode.padding * 2
-            : ((textNode.padding.left ?? 0) + (textNode.padding.right ?? 0));
-          constraintWidth = Math.max(0, constraintWidth - padding);
-        }
+      if (shouldClip) {
+        constraintWidth = result.width; // Use Yoga-allocated width as constraint
       }
 
-      // Apply text truncation only when there's an explicit constraint
+      // NOTE: We intentionally do NOT use textNode.width as a truncation constraint.
+      // Explicit width on text nodes is for LAYOUT allocation (reserving space),
+      // not for clipping. For example, list bullets use width:20 to reserve space
+      // but the actual bullet character should never be clipped.
+      // Text truncation only happens when the parent container constrains the text
+      // (when shouldClip is true from the layout context).
+
+      // Apply text truncation when text exceeds allocated width
       let content = textNode.content;
       let textWidth = 0;
 
@@ -200,7 +206,7 @@ function collectRenderItems(
         );
       }
 
-      // Truncate only if there's an explicit constraint AND text exceeds it
+      // Truncate if text exceeds constraint width (only when constrained)
       if (constraintWidth > 0 && textWidth > constraintWidth) {
         content = truncateText(content, constraintWidth, overflow, result.style);
 

@@ -193,6 +193,227 @@ export interface LayoutProps {
   children?: JSXChildren;
 }
 
+// ==================== DATA DISPLAY COMPONENT PROPS ====================
+
+/**
+ * Table column definition
+ */
+export interface TableColumn {
+  header: string;
+  key: string;
+  width?: WidthSpec;
+  align?: HAlign;
+}
+
+/**
+ * Table component props
+ * Displays tabular data with column definitions or custom children
+ */
+export interface TableProps {
+  columns?: TableColumn[];
+  data?: unknown[];
+  items?: string;
+  showHeader?: boolean;
+  headerStyle?: NodeStyle;
+  rowStyle?: NodeStyle;
+  separator?: string;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * TableRow component props
+ * Row container for Table children mode
+ */
+export interface TableRowProps {
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * TableCell component props
+ * Cell container for Table children mode
+ */
+export interface TableCellProps {
+  width?: WidthSpec;
+  align?: HAlign;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * List component props
+ * Ordered or unordered list
+ */
+export interface ListProps {
+  items?: string;
+  as?: string;
+  variant?: 'bullet' | 'numbered' | 'none';
+  bullet?: string;
+  indent?: number;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * ListItem component props
+ * Individual list item
+ */
+export interface ListItemProps {
+  bullet?: string;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * Badge component props
+ * Inline status indicator
+ */
+export interface BadgeProps {
+  variant?: 'default' | 'success' | 'warning' | 'error';
+  style?: NodeStyle;
+  children?: string | number;
+}
+
+/**
+ * Card component props
+ * Grouped content container with optional border
+ */
+export interface CardProps {
+  title?: string;
+  border?: string;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+// ==================== TYPOGRAPHY COMPONENT PROPS ====================
+
+/**
+ * Heading component props
+ * H1-H4 style heading with level-based styling
+ */
+export interface HeadingProps {
+  level?: 1 | 2 | 3 | 4;
+  align?: HAlign;
+  underline?: boolean | string;
+  style?: NodeStyle;
+  children?: string | number;
+}
+
+/**
+ * Paragraph component props
+ * Text block with automatic margins
+ */
+export interface ParagraphProps {
+  align?: HAlign;
+  indent?: number;
+  style?: NodeStyle;
+  children?: string | number;
+}
+
+/**
+ * Label component props
+ * Key-value pair display
+ */
+export interface LabelProps {
+  label: string;
+  value?: string | number;
+  labelWidth?: number;
+  colon?: boolean;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * Caption component props
+ * Small italic text
+ */
+export interface CaptionProps {
+  align?: HAlign;
+  style?: NodeStyle;
+  children?: string | number;
+}
+
+/**
+ * Code component props
+ * Code block with optional border
+ */
+export interface CodeProps {
+  inline?: boolean;
+  border?: boolean;
+  style?: NodeStyle;
+  children?: string | number;
+}
+
+// ==================== DECORATIVE COMPONENT PROPS ====================
+
+/**
+ * Divider component props
+ * Enhanced separator with variants
+ */
+export interface DividerProps {
+  variant?: 'single' | 'double' | 'thick' | 'dashed';
+  spacing?: number;
+  style?: NodeStyle;
+}
+
+/**
+ * Border character set
+ */
+export interface BorderChars {
+  topLeft?: string;
+  topRight?: string;
+  bottomLeft?: string;
+  bottomRight?: string;
+  horizontal?: string;
+  vertical?: string;
+}
+
+/**
+ * Border component props
+ * ASCII box drawing around content
+ */
+export interface BorderProps {
+  variant?: 'single' | 'double' | 'rounded';
+  chars?: BorderChars;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * Box component props
+ * Container with padding and optional border
+ */
+export interface BoxProps {
+  padding?: PaddingSpec;
+  border?: boolean;
+  borderVariant?: 'single' | 'double' | 'rounded';
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * Panel component props
+ * Titled panel with header area
+ */
+export interface PanelProps {
+  title?: string;
+  headerActions?: JSXChildren;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
+/**
+ * Section component props
+ * Semantic section with optional heading
+ */
+export interface SectionProps {
+  title?: string;
+  level?: 1 | 2 | 3 | 4;
+  style?: NodeStyle;
+  children?: JSXChildren;
+}
+
 // ==================== FUNCTION COMPONENT ====================
 
 /**

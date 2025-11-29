@@ -77,6 +77,13 @@ export function buildYogaTree(
   applyPosition(yogaNode, node as LayoutNodeBase);
   applyConstraints(yogaNode, node as LayoutNodeBase);
 
+  // Nodes with explicit width should NOT shrink when in a Flex container.
+  // This ensures table columns with explicit widths maintain their size.
+  const nodeWidth = (node as LayoutNodeBase).width;
+  if (typeof nodeWidth === 'number') {
+    yogaNode.setFlexShrink(0);
+  }
+
   // Build the mapping
   const mapping: NodeMapping = {
     node,
@@ -156,10 +163,25 @@ function buildStackNode(
   }
 
   // Build children recursively
+  // Stack is NOT a flex row - text should never shrink in a Stack.
+  // Stack items flow naturally with gap and can overflow if needed.
+  // This is different from Flex which uses flexbox distribution semantics.
+  const hasExplicitWidth = typeof node.width === 'number' || node.width === 'fill';
+  let childCtx: YogaLayoutContext;
+
+  if (hasExplicitWidth) {
+    // Stack with explicit width provides a fixed boundary
+    // Text inside should be clipped to fit within the container
+    childCtx = { ...ctx, inFlexRow: false, shouldClipText: true };
+  } else {
+    // Stack without explicit width - text can overflow
+    childCtx = { ...ctx, inFlexRow: false, shouldClipText: false };
+  }
+
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     if (!child) continue; // Skip undefined children
-    const childMapping = buildYogaTree(Yoga, child, ctx, config);
+    const childMapping = buildYogaTree(Yoga, child, childCtx, config);
     yogaNode.insertChild(childMapping.yogaNode, i);
     mapping.children.push(childMapping);
   }
@@ -195,10 +217,20 @@ function buildFlexNode(
   }
 
   // Build children recursively
+  // Flex row: text should NOT shrink (Spacers handle flexible distribution).
+  // Text clipping depends on whether Flex has explicit width.
+  const hasExplicitWidth = typeof node.width === 'number' || node.width === 'fill';
+  const flexRowCtx: YogaLayoutContext = {
+    ...ctx,
+    inFlexRow: true,
+    // In Flex with explicit width, text should be clipped to container
+    // In Flex without explicit width, text can overflow
+    shouldClipText: hasExplicitWidth,
+  };
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     if (!child) continue; // Skip undefined children
-    const childMapping = buildYogaTree(Yoga, child, ctx, config);
+    const childMapping = buildYogaTree(Yoga, child, flexRowCtx, config);
     yogaNode.insertChild(childMapping.yogaNode, i);
     mapping.children.push(childMapping);
   }
@@ -222,9 +254,27 @@ function buildTextNode(
   );
   yogaNode.setMeasureFunc(measureFunc);
 
-  // Track explicit width if set (for centering calculations)
+  // Text should NOT shrink in any context - it maintains its intrinsic size.
+  // In Flex rows, Spacers handle flexible space distribution by growing/shrinking.
+  // Text shrinking leads to unexpected clipping even when there's adequate space.
+  yogaNode.setFlexShrink(0);
+
+  // Text clipping depends on CONTAINER context, NOT text's own explicit width.
+  // Explicit width on text is for LAYOUT allocation (reserving space in flex),
+  // not for text truncation. For example:
+  // - List bullets use width:20 to reserve space but shouldn't be clipped
+  // - Table cells use Stack with width to define column width
+  //
+  // Text is only clipped when its PARENT container has explicit width constraints.
   if (typeof node.width === 'number') {
     mapping.explicitWidth = node.width;
+    // NOTE: We do NOT set shouldClipText here - explicit width is for layout only
+  }
+
+  if (ctx.shouldClipText) {
+    mapping.shouldClipText = true; // Parent has explicit width, clip to container
+  } else {
+    mapping.shouldClipText = false; // Allow overflow
   }
 }
 
@@ -260,17 +310,29 @@ function buildLineNode(
   const direction = node.direction ?? 'horizontal';
   const length = node.length;
 
-  // Set custom measure function for line sizing
-  const measureFunc = createLineMeasureFunc(
-    length,
-    ctx.lineSpacing,
-    direction
-  );
-  yogaNode.setMeasureFunc(measureFunc);
+  if (direction === 'horizontal') {
+    // Horizontal line: fill width, fixed height
+    yogaNode.setHeight(ctx.lineSpacing);
+    yogaNode.setFlexShrink(0); // Don't shrink height
 
-  // If length is 'fill', set flex grow
-  if (length === 'fill') {
-    yogaNode.setFlexGrow(1);
+    if (length === 'fill') {
+      // Use 100% width to fill container
+      yogaNode.setWidthPercent(100);
+    } else if (typeof length === 'number') {
+      yogaNode.setWidth(length);
+    }
+    // Note: No measure function needed - we set explicit dimensions
+  } else {
+    // Vertical line: fixed width, fill height
+    yogaNode.setWidth(ctx.lineSpacing);
+    yogaNode.setFlexShrink(0); // Don't shrink width
+
+    if (length === 'fill') {
+      // Use flexGrow for vertical fill
+      yogaNode.setFlexGrow(1);
+    } else if (typeof length === 'number') {
+      yogaNode.setHeight(length);
+    }
   }
 }
 

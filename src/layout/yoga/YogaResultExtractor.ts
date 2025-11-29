@@ -66,6 +66,11 @@ export function extractLayoutResult(
     };
   }
 
+  // Pass through text clipping flag
+  if (mapping.shouldClipText !== undefined) {
+    result.isWidthConstrained = mapping.shouldClipText;
+  }
+
   return result;
 }
 

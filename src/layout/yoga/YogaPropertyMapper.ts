@@ -45,10 +45,10 @@ export function applyWidth(
     // Auto width - let Yoga determine from content
     yogaNode.setWidthAuto();
   } else if (width === 'fill') {
-    // Fill remaining space - use flex grow
-    yogaNode.setFlexGrow(1);
-    yogaNode.setFlexShrink(1);
-    yogaNode.setFlexBasis(0);
+    // Fill available width - use 100% width
+    // Note: We use widthPercent instead of flexGrow because flexGrow
+    // affects the main axis (height for column containers), not width.
+    yogaNode.setWidthPercent(100);
   } else if (isPercentage(width)) {
     // Percentage width
     const percent = parsePercentage(width);

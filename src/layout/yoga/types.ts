@@ -35,6 +35,8 @@ export interface LayoutResult {
   style: ResolvedStyle;
   /** Relative offset to apply at render time (not used for pagination) */
   relativeOffset?: { x: number; y: number };
+  /** Whether width is constrained (text should be clipped) or natural (allow overflow) */
+  isWidthConstrained?: boolean;
 }
 
 /**
@@ -66,6 +68,10 @@ export interface YogaLayoutContext {
   interCharSpace: number;
   /** Current resolved style (inherited from parent) */
   style: ResolvedStyle;
+  /** Whether current node is in a flex row context (for text shrink behavior) */
+  inFlexRow?: boolean;
+  /** Whether text should be clipped to container width */
+  shouldClipText?: boolean;
 }
 
 /**
@@ -87,5 +93,7 @@ export interface NodeMapping {
   margin: ResolvedMargin;
   /** Explicit width if specified (for text nodes with explicit width) */
   explicitWidth?: number;
+  /** Whether text should be clipped to allocated width (flex row context) */
+  shouldClipText?: boolean;
 }
 
