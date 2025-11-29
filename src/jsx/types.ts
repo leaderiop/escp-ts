@@ -466,30 +466,4 @@ export type FunctionComponent<P = Record<string, unknown>> = (
   props: P & { children?: JSXChildren }
 ) => LayoutNode | null;
 
-// ==================== JSX NAMESPACE ====================
-
-declare global {
-  namespace JSX {
-    type Element = LayoutNode;
-
-    interface IntrinsicElements {
-      Layout: LayoutProps;
-      Stack: StackProps;
-      Flex: FlexProps;
-      Text: TextProps;
-      Spacer: SpacerProps;
-      Line: LineProps;
-      Template: TemplateProps;
-      If: IfProps;
-      Switch: SwitchProps;
-      Case: CaseProps;
-      For: ForProps;
-    }
-
-    interface ElementChildrenAttribute {
-      children: {};
-    }
-  }
-}
-
-export {};
+// JSX namespace declarations are in jsx.d.ts (declaration files are the correct place for ambient type declarations)
