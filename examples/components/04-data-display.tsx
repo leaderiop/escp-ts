@@ -2,10 +2,11 @@
  * Data Display Components Example
  *
  * Demonstrates: Table, TableRow, TableCell, List, ListItem, Card, Badge
+ * Layout: Uses full page width with horizontal sections
  */
 
 import { LayoutEngine } from "../../src";
-import { Stack, Flex, Layout, Text, Line } from "../../src/jsx";
+import { Stack, Flex, Layout, Text, Line, Spacer } from "../../src/jsx";
 import {
   Table,
   TableRow,
@@ -15,6 +16,12 @@ import {
   Badge,
 } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
+
+// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
+const PRINTABLE_WIDTH = Math.round(13.6 * 360);
+// Column width for 3-column layout with gaps
+const COLUMN_GAP = 60;
+const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection("Data Display Components");
@@ -37,229 +44,134 @@ async function main() {
     ],
   });
 
-  // Use wider layout to fit content without truncation
-  // At 10 CPI: 36 dots per character
-  // 1800 dots = 50 chars wide (comfortable for typical content)
+  // Layout uses full printable width (no explicit width = uses availableWidth)
   const doc = Layout({
-    style: { width: 1800, padding: 20 },
+    style: { padding: 10 },
     children: [
+      // Title
       Text({
         style: { bold: true, doubleWidth: true },
-        children: "Data Display",
+        children: "Data Display Components",
       }),
       Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 20 } }),
 
-      // Badge - Status indicators
-      Text({ style: { bold: true }, children: "Badge Component:" }),
-      Stack({
-        style: { padding: 10, gap: 10 },
+      // Row 1: Badge, Card (side by side)
+      Flex({
+        style: { gap: COLUMN_GAP },
         children: [
-          Flex({
-            style: { gap: 20 },
+          // Column 1: Badge Component
+          Stack({
+            style: { width: COLUMN_WIDTH },
             children: [
-              Text({ children: "Order Status:" }),
-              Badge({ variant: "success", children: "PAID" }),
-            ],
-          }),
-          Flex({
-            style: { gap: 20 },
-            children: [
-              Text({ children: "Inventory:" }),
-              Badge({ variant: "warning", children: "LOW STOCK" }),
-            ],
-          }),
-          Flex({
-            style: { gap: 20 },
-            children: [
-              Text({ children: "Shipping:" }),
-              Badge({ variant: "error", children: "DELAYED" }),
-            ],
-          }),
-          Flex({
-            style: { gap: 20 },
-            children: [
-              Text({ children: "Category:" }),
-              Badge({ variant: "default", children: "ELECTRONICS" }),
-            ],
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Card - Grouped content
-      Text({ style: { bold: true }, children: "Card Component:" }),
-      Stack({
-        style: { padding: 10, gap: 15 },
-        children: [
-          Card({
-            title: "Customer Information",
-            children: Stack({
-              style: { gap: 3 },
-              children: [
-                Text({ children: "John Doe" }),
-                Text({ children: "john@example.com" }),
-                Text({ children: "+1 (555) 123-4567" }),
-              ],
-            }),
-          }),
-
-          Card({
-            title: "Shipping Address",
-            border: "=",
-            children: Stack({
-              style: { gap: 3 },
-              children: [
-                Text({ children: "123 Main Street" }),
-                Text({ children: "Suite 456" }),
-                Text({ children: "New York, NY 10001" }),
-              ],
-            }),
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // List - Bullet and numbered lists
-      Text({ style: { bold: true }, children: "List Component:" }),
-      Stack({
-        style: { padding: 10, gap: 15 },
-        children: [
-          Text({ children: "Bullet List:" }),
-          List({
-            variant: "bullet",
-            children: [
-              Text({ children: "First item" }),
-              Text({ children: "Second item" }),
-              Text({ children: "Third item" }),
-            ],
-          }),
-
-          Text({ children: "Numbered List:" }),
-          List({
-            variant: "numbered",
-            children: [
-              Text({ children: "Step one" }),
-              Text({ children: "Step two" }),
-              Text({ children: "Step three" }),
-            ],
-          }),
-
-          Text({ children: "Custom Bullet:" }),
-          List({
-            variant: "bullet",
-            bullet: "->",
-            indent: 80, // "-> " is 3 chars = 108 dots, use 80 for tight spacing
-            children: [
-              Text({ children: "Arrow item A" }),
-              Text({ children: "Arrow item B" }),
-            ],
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Table - Column-based with static data
-      Text({
-        style: { bold: true },
-        children: "Table Component (Static Data):",
-      }),
-      Stack({
-        style: { padding: 10 },
-        children: [
-          Table({
-            // Column widths calculated for 10 CPI (36 dots/char):
-            // - Product: 12 chars max = 432 dots, use 450
-            // - SKU: 6 chars = 216 dots, use 220
-            // - Price: 8 chars = 288 dots, use 300 (incl. alignment padding)
-            // - Stock: 5 chars = 180 dots, use 200
-            columns: [
-              { header: "Product", key: "name", width: 450 },
-              { header: "SKU", key: "sku", width: 220 },
-              { header: "Price", key: "price", width: 300, align: "right" },
-              { header: "Stock", key: "stock", width: 200, align: "right" },
-            ],
-            data: [
-              { name: "Keyboard", sku: "KB-101", price: "$79.99", stock: 45 },
-              { name: "Webcam HD", sku: "WC-200", price: "$89.99", stock: 30 },
-              {
-                name: "Headphones",
-                sku: "HP-300",
-                price: "$149.99",
-                stock: 22,
-              },
-            ],
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Table - Data-bound
-      Text({
-        style: { bold: true },
-        children: "Table Component (Data-Bound):",
-      }),
-      Stack({
-        style: { padding: 10 },
-        children: [
-          Table({
-            columns: [
-              { header: "Product", key: "name", width: 450 },
-              { header: "SKU", key: "sku", width: 220 },
-              { header: "Price", key: "price", width: 300, align: "right" },
-              { header: "Stock", key: "stock", width: 200, align: "right" },
-            ],
-            items: "products",
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Table - Children-based (manual rows)
-      Text({
-        style: { bold: true },
-        children: "Table Component (Manual Rows):",
-      }),
-      Stack({
-        style: { padding: 10 },
-        children: [
-          Table({
-            children: [
-              TableRow({
-                style: { bold: true },
+              Text({ style: { bold: true }, children: "Badge Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { gap: 8, padding: { left: 10, top: 5 } },
                 children: [
-                  TableCell({ width: 200, children: "Description" }),
-                  TableCell({ width: 100, align: "right", children: "Amount" }),
-                ],
-              }),
-              TableRow({
-                children: [
-                  TableCell({ width: 200, children: "Subtotal" }),
-                  TableCell({
-                    width: 100,
-                    align: "right",
-                    children: "$299.97",
+                  Flex({
+                    style: { gap: 10 },
+                    children: [
+                      Text({ children: "Order:" }),
+                      Badge({ variant: "success", children: "PAID" }),
+                    ],
+                  }),
+                  Flex({
+                    style: { gap: 10 },
+                    children: [
+                      Text({ children: "Stock:" }),
+                      Badge({ variant: "warning", children: "LOW" }),
+                    ],
+                  }),
+                  Flex({
+                    style: { gap: 10 },
+                    children: [
+                      Text({ children: "Ship:" }),
+                      Badge({ variant: "error", children: "DELAYED" }),
+                    ],
+                  }),
+                  Flex({
+                    style: { gap: 10 },
+                    children: [
+                      Text({ children: "Type:" }),
+                      Badge({ variant: "default", children: "ELECTRONICS" }),
+                    ],
                   }),
                 ],
               }),
-              TableRow({
+            ],
+          }),
+
+          // Column 2: Card Component
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "Card Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { gap: 10, padding: { top: 5 } },
                 children: [
-                  TableCell({ width: 200, children: "Tax (8%)" }),
-                  TableCell({ width: 100, align: "right", children: "$24.00" }),
+                  Card({
+                    title: "Customer Info",
+                    children: Stack({
+                      style: { gap: 2 },
+                      children: [
+                        Text({ children: "John Doe" }),
+                        Text({ children: "john@example.com" }),
+                        Text({ children: "+1 (555) 123-4567" }),
+                      ],
+                    }),
+                  }),
+                  Card({
+                    title: "Address",
+                    border: "=",
+                    children: Stack({
+                      style: { gap: 2 },
+                      children: [
+                        Text({ children: "123 Main Street" }),
+                        Text({ children: "New York, NY 10001" }),
+                      ],
+                    }),
+                  }),
                 ],
               }),
-              TableRow({
-                style: { bold: true },
+            ],
+          }),
+
+          // Column 3: List Component
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "List Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { gap: 10, padding: { top: 5 } },
                 children: [
-                  TableCell({ width: 200, children: "TOTAL" }),
-                  TableCell({
-                    width: 100,
-                    align: "right",
-                    children: "$323.97",
+                  Text({ children: "Bullet:" }),
+                  List({
+                    variant: "bullet",
+                    children: [
+                      Text({ children: "First item" }),
+                      Text({ children: "Second item" }),
+                    ],
+                  }),
+                  Text({ children: "Numbered:" }),
+                  List({
+                    variant: "numbered",
+                    children: [
+                      Text({ children: "Step one" }),
+                      Text({ children: "Step two" }),
+                    ],
+                  }),
+                  Text({ children: "Custom (->):" }),
+                  List({
+                    variant: "bullet",
+                    bullet: "->",
+                    indent: 80,
+                    children: [
+                      Text({ children: "Arrow A" }),
+                      Text({ children: "Arrow B" }),
+                    ],
                   }),
                 ],
               }),
@@ -267,6 +179,83 @@ async function main() {
           }),
         ],
       }),
+
+      Spacer({ style: { height: 20 } }),
+      Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 10 } }),
+
+      // Row 2: Table Component (full width)
+      Text({ style: { bold: true }, children: "Table Component" }),
+      Line({ char: "-", length: "fill" }),
+      Spacer({ style: { height: 5 } }),
+
+      // Static data table
+      Text({ children: "Static Data:" }),
+      Table({
+        columns: [
+          { header: "Product", key: "name", width: 500 },
+          { header: "SKU", key: "sku", width: 300 },
+          { header: "Price", key: "price", width: 350, align: "right" },
+          { header: "Stock", key: "stock", width: 250, align: "right" },
+        ],
+        data: [
+          { name: "Keyboard Pro", sku: "KB-101", price: "$79.99", stock: 45 },
+          { name: "Webcam HD", sku: "WC-200", price: "$89.99", stock: 30 },
+          { name: "Headphones Elite", sku: "HP-300", price: "$149.99", stock: 22 },
+        ],
+      }),
+
+      Spacer({ style: { height: 15 } }),
+
+      // Data-bound table
+      Text({ children: "Data-Bound (from engine.setData):" }),
+      Table({
+        columns: [
+          { header: "Product", key: "name", width: 500 },
+          { header: "SKU", key: "sku", width: 300 },
+          { header: "Price", key: "price", width: 350, align: "right" },
+          { header: "Stock", key: "stock", width: 250, align: "right" },
+        ],
+        items: "products",
+      }),
+
+      Spacer({ style: { height: 15 } }),
+
+      // Manual rows table (invoice style)
+      Text({ children: "Manual Rows (Invoice):" }),
+      Table({
+        children: [
+          TableRow({
+            style: { bold: true },
+            children: [
+              TableCell({ width: 600, children: "Description" }),
+              TableCell({ width: 300, align: "right", children: "Amount" }),
+            ],
+          }),
+          TableRow({
+            children: [
+              TableCell({ width: 600, children: "Subtotal" }),
+              TableCell({ width: 300, align: "right", children: "$299.97" }),
+            ],
+          }),
+          TableRow({
+            children: [
+              TableCell({ width: 600, children: "Tax (8%)" }),
+              TableCell({ width: 300, align: "right", children: "$24.00" }),
+            ],
+          }),
+          TableRow({
+            style: { bold: true },
+            children: [
+              TableCell({ width: 600, children: "TOTAL" }),
+              TableCell({ width: 300, align: "right", children: "$323.97" }),
+            ],
+          }),
+        ],
+      }),
+
+      Spacer({ style: { height: 10 } }),
+      Line({ char: "=", length: "fill" }),
     ],
   });
 

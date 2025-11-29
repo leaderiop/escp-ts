@@ -2,13 +2,20 @@
  * Decorative Components Example
  *
  * Demonstrates: Divider, Border, Box, Panel, Section
+ * Layout: Uses full page width with horizontal sections
  */
 
 import { LayoutEngine } from "../../src";
-import { Stack, Layout, Text, Line } from "../../src/jsx";
+import { Stack, Flex, Layout, Text, Line, Spacer } from "../../src/jsx";
 import { Divider, Border, Box, Panel, Section } from "../../src/jsx/components";
 import { Badge, Label } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
+
+// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
+const PRINTABLE_WIDTH = Math.round(13.6 * 360);
+// Column width for 3-column layout with gaps
+const COLUMN_GAP = 60;
+const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection("Decorative Components");
@@ -17,196 +24,219 @@ async function main() {
   await engine.initYoga();
 
   const doc = Layout({
-    style: { width: 576, padding: 20 },
+    style: { padding: 10 },
     children: [
-      Text({ style: { bold: true, doubleWidth: true }, children: "Decorative" }),
+      // Title
+      Text({ style: { bold: true, doubleWidth: true }, children: "Decorative Components" }),
       Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 20 } }),
 
-      // Divider - Enhanced separators
-      Text({ style: { bold: true }, children: "Divider Component:" }),
-      Stack({
-        style: { padding: 10, gap: 5 },
+      // Row 1: Divider and Border (3 columns)
+      Flex({
+        style: { gap: COLUMN_GAP },
         children: [
-          Text({ children: "Single divider:" }),
-          Divider({ variant: "single" }),
-
-          Text({ children: "Double divider:" }),
-          Divider({ variant: "double" }),
-
-          Text({ children: "Thick divider:" }),
-          Divider({ variant: "thick" }),
-
-          Text({ children: "Dashed divider:" }),
-          Divider({ variant: "dashed" }),
-
-          Text({ children: "Custom spacing (15):" }),
-          Divider({ variant: "single", spacing: 15 }),
-          Text({ children: "After divider" }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Border - ASCII box drawing
-      Text({ style: { bold: true }, children: "Border Component:" }),
-      Stack({
-        style: { padding: 10, gap: 15 },
-        children: [
-          Text({ children: "Single border:" }),
-          Border({
-            variant: "single",
-            children: Stack({
-              style: { padding: 5 },
-              children: [
-                Text({ children: "Content inside" }),
-                Text({ children: "a single border" }),
-              ],
-            }),
+          // Column 1: Divider Component
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "Divider Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 5 },
+                children: [
+                  Text({ children: "Single:" }),
+                  Divider({ variant: "single" }),
+                  Text({ children: "Double:" }),
+                  Divider({ variant: "double" }),
+                  Text({ children: "Thick:" }),
+                  Divider({ variant: "thick" }),
+                  Text({ children: "Dashed:" }),
+                  Divider({ variant: "dashed" }),
+                ],
+              }),
+            ],
           }),
 
-          Text({ children: "Double border:" }),
-          Border({
-            variant: "double",
-            children: Stack({
-              style: { padding: 5 },
-              children: [
-                Text({ children: "Content inside" }),
-                Text({ children: "a double border" }),
-              ],
-            }),
+          // Column 2: Border Component
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "Border Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 10 },
+                children: [
+                  Text({ children: "Single:" }),
+                  Border({
+                    variant: "single",
+                    children: Stack({
+                      style: { padding: 5 },
+                      children: [Text({ children: "Content" })],
+                    }),
+                  }),
+                  Text({ children: "Double:" }),
+                  Border({
+                    variant: "double",
+                    children: Stack({
+                      style: { padding: 5 },
+                      children: [Text({ children: "Content" })],
+                    }),
+                  }),
+                ],
+              }),
+            ],
           }),
 
-          Text({ children: "Rounded border:" }),
-          Border({
-            variant: "rounded",
-            children: Stack({
-              style: { padding: 5 },
-              children: [
-                Text({ children: "Content inside" }),
-                Text({ children: "a rounded border" }),
-              ],
-            }),
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Box - Container with padding
-      Text({ style: { bold: true }, children: "Box Component:" }),
-      Stack({
-        style: { padding: 10, gap: 15 },
-        children: [
-          Text({ children: "Simple box (padding only):" }),
-          Box({
-            padding: 15,
-            children: Text({ children: "Padded content" }),
-          }),
-
-          Text({ children: "Box with border:" }),
-          Box({
-            border: true,
-            padding: 10,
-            children: Stack({
-              children: [
-                Text({ children: "Bordered box" }),
-                Text({ children: "with padding" }),
-              ],
-            }),
-          }),
-
-          Text({ children: "Box with double border:" }),
-          Box({
-            border: true,
-            borderVariant: "double",
-            padding: 10,
-            children: Text({ children: "Double bordered box" }),
+          // Column 3: Box Component
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "Box Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 10 },
+                children: [
+                  Text({ children: "Padding only:" }),
+                  Box({
+                    padding: 10,
+                    children: Text({ children: "Padded" }),
+                  }),
+                  Text({ children: "With border:" }),
+                  Box({
+                    border: true,
+                    padding: 10,
+                    children: Text({ children: "Bordered" }),
+                  }),
+                ],
+              }),
+            ],
           }),
         ],
       }),
 
+      Spacer({ style: { height: 20 } }),
+      Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 10 } }),
+
+      // Row 2: Panel Component (full width with examples)
+      Text({ style: { bold: true }, children: "Panel Component" }),
       Line({ char: "-", length: "fill" }),
+      Spacer({ style: { height: 5 } }),
 
-      // Panel - Titled container
-      Text({ style: { bold: true }, children: "Panel Component:" }),
-      Stack({
-        style: { padding: 10, gap: 15 },
+      Flex({
+        style: { gap: COLUMN_GAP },
         children: [
-          Panel({
-            title: "Simple Panel",
-            children: Stack({
-              children: [
-                Text({ children: "Panel content goes here." }),
-                Text({ children: "Multiple lines supported." }),
-              ],
-            }),
-          }),
-
-          Panel({
-            title: "Order Status",
-            headerActions: Badge({ variant: "success", children: "SHIPPED" }),
-            children: Stack({
-              style: { gap: 3 },
-              children: [
-                Label({ label: "Order #", value: "12345" }),
-                Label({ label: "Date", value: "2024-12-15" }),
-                Label({ label: "Carrier", value: "FedEx" }),
-              ],
-            }),
-          }),
-
-          Panel({
-            title: "Warning",
-            headerActions: Badge({ variant: "warning", children: "ALERT" }),
-            children: Text({
-              children: "Low stock on several items. Please review inventory.",
-            }),
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Section - Semantic grouping
-      Text({ style: { bold: true }, children: "Section Component:" }),
-      Stack({
-        style: { padding: 10 },
-        children: [
-          Section({
-            title: "Introduction",
-            level: 2,
-            children: Stack({
-              children: [
-                Text({
-                  children:
-                    "Sections provide semantic grouping with automatic heading and margins.",
+          // Simple Panel
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Panel({
+                title: "Simple Panel",
+                children: Stack({
+                  children: [
+                    Text({ children: "Panel content here." }),
+                    Text({ children: "Multiple lines." }),
+                  ],
                 }),
-              ],
-            }),
+              }),
+            ],
           }),
 
-          Section({
-            title: "Features",
-            level: 3,
-            children: Stack({
-              style: { gap: 3 },
-              children: [
-                Text({ children: "- Automatic margins" }),
-                Text({ children: "- Configurable heading level" }),
-                Text({ children: "- Clean visual hierarchy" }),
-              ],
-            }),
+          // Panel with Badge
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Panel({
+                title: "Order Status",
+                headerActions: Badge({ variant: "success", children: "SHIPPED" }),
+                children: Stack({
+                  style: { gap: 3 },
+                  children: [
+                    Label({ label: "Order #", value: "12345" }),
+                    Label({ label: "Date", value: "2024-12-15" }),
+                    Label({ label: "Carrier", value: "FedEx" }),
+                  ],
+                }),
+              }),
+            ],
           }),
 
-          Section({
-            title: "Conclusion",
-            level: 3,
-            children: Text({
-              children: "Sections help organize your document content.",
-            }),
+          // Warning Panel
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Panel({
+                title: "Warning",
+                headerActions: Badge({ variant: "warning", children: "ALERT" }),
+                children: Text({
+                  children: "Low stock alert. Review inventory.",
+                }),
+              }),
+            ],
           }),
         ],
       }),
+
+      Spacer({ style: { height: 20 } }),
+      Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 10 } }),
+
+      // Row 3: Section Component (full width)
+      Text({ style: { bold: true }, children: "Section Component" }),
+      Line({ char: "-", length: "fill" }),
+      Spacer({ style: { height: 5 } }),
+
+      Flex({
+        style: { gap: COLUMN_GAP },
+        children: [
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Section({
+                title: "Introduction",
+                level: 2,
+                children: Text({
+                  children: "Sections provide semantic grouping with automatic heading.",
+                }),
+              }),
+            ],
+          }),
+
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Section({
+                title: "Features",
+                level: 3,
+                children: Stack({
+                  style: { gap: 3 },
+                  children: [
+                    Text({ children: "- Auto margins" }),
+                    Text({ children: "- Heading levels" }),
+                    Text({ children: "- Clean hierarchy" }),
+                  ],
+                }),
+              }),
+            ],
+          }),
+
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Section({
+                title: "Conclusion",
+                level: 3,
+                children: Text({
+                  children: "Sections organize document content effectively.",
+                }),
+              }),
+            ],
+          }),
+        ],
+      }),
+
+      Spacer({ style: { height: 10 } }),
+      Line({ char: "=", length: "fill" }),
     ],
   });
 

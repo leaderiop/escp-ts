@@ -2,11 +2,18 @@
  * Layout Components Example
  *
  * Demonstrates: Stack, Flex, Layout, Spacer, Fragment
+ * Layout: Uses full page width with horizontal sections
  */
 
 import { LayoutEngine } from '../../src';
 import { Stack, Flex, Layout, Spacer, Text, Line } from '../../src/jsx';
 import { renderPreview, DEFAULT_PAPER, printSection } from '../_helpers';
+
+// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
+const PRINTABLE_WIDTH = Math.round(13.6 * 360);
+// Column width for 3-column layout with gaps
+const COLUMN_GAP = 60;
+const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection('Layout Components');
@@ -14,41 +21,96 @@ async function main() {
   const engine = new LayoutEngine({ defaultPaper: DEFAULT_PAPER });
   await engine.initYoga();
 
-  // Layout - Root container
   const doc = Layout({
-    style: { width: 576, padding: 20 },
+    style: { padding: 10 },
     children: [
-      // Stack - Vertical arrangement (default)
-      Text({ style: { bold: true }, children: 'Stack (Vertical):' }),
-      Stack({
-        style: { gap: 5, padding: 10 },
-        children: [
-          Text({ children: 'Item 1' }),
-          Text({ children: 'Item 2' }),
-          Text({ children: 'Item 3' }),
-        ],
-      }),
+      // Title
+      Text({ style: { bold: true, doubleWidth: true }, children: 'Layout Components' }),
+      Line({ char: '=', length: 'fill' }),
+      Spacer({ style: { height: 20 } }),
 
-      Line({ char: '-', length: 'fill' }),
-
-      // Stack - Horizontal arrangement
-      Text({ style: { bold: true }, children: 'Stack (Horizontal):' }),
-      Stack({
-        direction: 'row',
-        style: { gap: 20, padding: 10 },
-        children: [
-          Text({ children: 'Left' }),
-          Text({ children: 'Center' }),
-          Text({ children: 'Right' }),
-        ],
-      }),
-
-      Line({ char: '-', length: 'fill' }),
-
-      // Flex - Distribute space evenly
-      Text({ style: { bold: true }, children: 'Flex with Spacer:' }),
+      // Row 1: Stack examples (3 columns)
       Flex({
-        style: { padding: 10 },
+        style: { gap: COLUMN_GAP },
+        children: [
+          // Column 1: Stack Vertical
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: 'Stack (Vertical)' }),
+              Line({ char: '-', length: 'fill' }),
+              Stack({
+                style: { gap: 5, padding: { left: 10, top: 5 } },
+                children: [
+                  Text({ children: 'Item 1' }),
+                  Text({ children: 'Item 2' }),
+                  Text({ children: 'Item 3' }),
+                ],
+              }),
+            ],
+          }),
+
+          // Column 2: Stack Horizontal
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: 'Stack (Horizontal)' }),
+              Line({ char: '-', length: 'fill' }),
+              Stack({
+                direction: 'row',
+                style: { gap: 20, padding: { top: 5 } },
+                children: [
+                  Text({ children: 'Left' }),
+                  Text({ children: 'Center' }),
+                  Text({ children: 'Right' }),
+                ],
+              }),
+            ],
+          }),
+
+          // Column 3: Nested Layouts
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: 'Nested Layouts' }),
+              Line({ char: '-', length: 'fill' }),
+              Flex({
+                style: { padding: { top: 5 }, gap: 20 },
+                children: [
+                  Stack({
+                    children: [
+                      Text({ style: { bold: true }, children: 'Col A' }),
+                      Text({ children: 'A1' }),
+                      Text({ children: 'A2' }),
+                    ],
+                  }),
+                  Stack({
+                    children: [
+                      Text({ style: { bold: true }, children: 'Col B' }),
+                      Text({ children: 'B1' }),
+                      Text({ children: 'B2' }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+
+      Spacer({ style: { height: 20 } }),
+      Line({ char: '=', length: 'fill' }),
+      Spacer({ style: { height: 10 } }),
+
+      // Row 2: Flex and Spacer examples (full width)
+      Text({ style: { bold: true }, children: 'Flex with Spacer' }),
+      Line({ char: '-', length: 'fill' }),
+      Spacer({ style: { height: 5 } }),
+
+      // Flex with spacer - left/right alignment
+      Text({ children: 'Left/Right alignment:' }),
+      Flex({
+        style: { padding: { left: 20 } },
         children: [
           Text({ children: 'Left aligned' }),
           Spacer({ flex: true }),
@@ -56,63 +118,36 @@ async function main() {
         ],
       }),
 
-      Line({ char: '-', length: 'fill' }),
+      Spacer({ style: { height: 10 } }),
 
-      // Flex with multiple spacers
-      Text({ style: { bold: true }, children: 'Flex - Three columns:' }),
+      // Three columns with spacers
+      Text({ children: 'Three columns with spacers:' }),
       Flex({
-        style: { padding: 10 },
+        style: { padding: { left: 20 } },
         children: [
-          Text({ children: 'Col 1' }),
+          Text({ children: 'Column 1' }),
           Spacer({ flex: true }),
-          Text({ children: 'Col 2' }),
+          Text({ children: 'Column 2' }),
           Spacer({ flex: true }),
-          Text({ children: 'Col 3' }),
+          Text({ children: 'Column 3' }),
         ],
       }),
 
-      Line({ char: '-', length: 'fill' }),
+      Spacer({ style: { height: 10 } }),
 
-      // Fixed Spacer
-      Text({ style: { bold: true }, children: 'Fixed Spacer (50px gap):' }),
+      // Fixed spacer
+      Text({ children: 'Fixed spacer (200 dots gap):' }),
       Flex({
-        style: { padding: 10 },
+        style: { padding: { left: 20 } },
         children: [
           Text({ children: 'Before' }),
-          Spacer({ style: { width: 50 } }),
+          Spacer({ style: { width: 200 } }),
           Text({ children: 'After' }),
         ],
       }),
 
-      Line({ char: '-', length: 'fill' }),
-
-      // Nested layouts
-      Text({ style: { bold: true }, children: 'Nested Layouts:' }),
-      Stack({
-        style: { padding: 10, gap: 10 },
-        children: [
-          Flex({
-            children: [
-              Stack({
-                style: { width: 200 },
-                children: [
-                  Text({ style: { bold: true }, children: 'Left Column' }),
-                  Text({ children: 'Content A' }),
-                  Text({ children: 'Content B' }),
-                ],
-              }),
-              Stack({
-                style: { width: 200 },
-                children: [
-                  Text({ style: { bold: true }, children: 'Right Column' }),
-                  Text({ children: 'Content X' }),
-                  Text({ children: 'Content Y' }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
+      Spacer({ style: { height: 10 } }),
+      Line({ char: '=', length: 'fill' }),
     ],
   });
 

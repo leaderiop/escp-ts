@@ -2,10 +2,11 @@
  * Typography Components Example
  *
  * Demonstrates: Heading, Paragraph, Label, Caption, Code
+ * Layout: Uses full page width with horizontal sections
  */
 
 import { LayoutEngine } from "../../src";
-import { Stack, Layout, Text, Line } from "../../src/jsx";
+import { Stack, Flex, Layout, Text, Line, Spacer } from "../../src/jsx";
 import {
   Heading,
   Paragraph,
@@ -16,6 +17,12 @@ import {
 } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
+// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
+const PRINTABLE_WIDTH = Math.round(13.6 * 360);
+// Column width for 3-column layout with gaps
+const COLUMN_GAP = 60;
+const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
+
 async function main() {
   printSection("Typography Components");
 
@@ -23,148 +30,187 @@ async function main() {
   await engine.initYoga();
 
   const doc = Layout({
-    style: { width: 576, padding: 20 },
+    style: { padding: 10 },
     children: [
-      Text({ style: { bold: true, doubleWidth: true }, children: "Typography" }),
+      // Title
+      Text({ style: { bold: true, doubleWidth: true }, children: "Typography Components" }),
       Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 20 } }),
 
-      // Heading - Different levels
-      Text({ style: { bold: true }, children: "Heading Component:" }),
-      Stack({
-        style: { padding: 10, gap: 10 },
+      // Row 1: Heading levels (3 columns)
+      Flex({
+        style: { gap: COLUMN_GAP },
         children: [
-          Heading({ level: 1, children: "Heading Level 1" }),
-          Heading({ level: 2, children: "Heading Level 2" }),
-          Heading({ level: 3, children: "Heading Level 3" }),
-          Heading({ level: 4, children: "Heading Level 4" }),
-        ],
-      }),
+          // Column 1: Heading Levels
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "Heading Levels" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 8 },
+                children: [
+                  Heading({ level: 1, children: "H1 Heading" }),
+                  Heading({ level: 2, children: "H2 Heading" }),
+                  Heading({ level: 3, children: "H3 Heading" }),
+                  Heading({ level: 4, children: "H4 Heading" }),
+                ],
+              }),
+            ],
+          }),
 
-      Line({ char: "-", length: "fill" }),
+          // Column 2: Heading with Underline
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "Heading Underline" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 8 },
+                children: [
+                  Heading({ level: 1, underline: true, children: "H1 Underlined" }),
+                  Heading({ level: 2, underline: true, children: "H2 Underlined" }),
+                  Heading({ level: 3, underline: "*", children: "H3 Custom *" }),
+                ],
+              }),
+            ],
+          }),
 
-      // Heading with underline
-      Text({ style: { bold: true }, children: "Heading with Underline:" }),
-      Stack({
-        style: { padding: 10, gap: 10 },
-        children: [
-          Heading({ level: 1, underline: true, children: "H1 with underline" }),
-          Heading({ level: 2, underline: true, children: "H2 with underline" }),
-          Heading({
-            level: 3,
-            underline: "*",
-            children: "H3 with custom underline",
+          // Column 3: Heading Alignment
+          Stack({
+            style: { width: COLUMN_WIDTH },
+            children: [
+              Text({ style: { bold: true }, children: "Heading Alignment" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 5 },
+                children: [
+                  Heading({ level: 3, align: "left", children: "Left" }),
+                  Heading({ level: 3, align: "center", children: "Center" }),
+                  Heading({ level: 3, align: "right", children: "Right" }),
+                ],
+              }),
+            ],
           }),
         ],
       }),
 
-      Line({ char: "-", length: "fill" }),
+      Spacer({ style: { height: 20 } }),
+      Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 10 } }),
 
-      // Heading alignment
-      Text({ style: { bold: true }, children: "Heading Alignment:" }),
-      Stack({
-        style: { padding: 10, gap: 5 },
+      // Row 2: Label and Caption (2 columns)
+      Flex({
+        style: { gap: COLUMN_GAP },
         children: [
-          Heading({ level: 3, align: "left", children: "Left aligned" }),
-          Heading({ level: 3, align: "center", children: "Center aligned" }),
-          Heading({ level: 3, align: "right", children: "Right aligned" }),
+          // Label Component
+          Stack({
+            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            children: [
+              Text({ style: { bold: true }, children: "Label Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 5 },
+                children: [
+                  Label({ label: "Name", value: "John Doe" }),
+                  Label({ label: "Email", value: "john@example.com" }),
+                  Label({ label: "Phone", value: "+1 (555) 123-4567" }),
+                  Label({
+                    label: "Status",
+                    children: Badge({ variant: "success", children: "ACTIVE" }),
+                  }),
+                  Line({ char: "-", length: "fill" }),
+                  Text({ children: "Customization:" }),
+                  Label({ label: "No colon", value: "Custom", colon: false }),
+                  Label({ label: "Wide", value: "200px label", labelWidth: 200 }),
+                ],
+              }),
+            ],
+          }),
+
+          // Caption Component
+          Stack({
+            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            children: [
+              Text({ style: { bold: true }, children: "Caption Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 5 },
+                children: [
+                  Text({ children: "Main content here" }),
+                  Caption({ children: "Caption - smaller italic text for descriptions" }),
+                  Text({ children: "Another item" }),
+                  Caption({ align: "right", children: "Right-aligned caption" }),
+                ],
+              }),
+            ],
+          }),
         ],
       }),
 
-      Line({ char: "-", length: "fill" }),
+      Spacer({ style: { height: 20 } }),
+      Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 10 } }),
 
-      // Paragraph - Text blocks
-      Text({ style: { bold: true }, children: "Paragraph Component:" }),
-      Stack({
-        style: { padding: 10 },
+      // Row 3: Paragraph and Code (2 columns)
+      Flex({
+        style: { gap: COLUMN_GAP },
         children: [
-          Paragraph({
-            children:
-              "This is a paragraph of text. Paragraphs have automatic margins above and below, making them perfect for body text.",
+          // Paragraph Component
+          Stack({
+            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            children: [
+              Text({ style: { bold: true }, children: "Paragraph Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 } },
+                children: [
+                  Paragraph({
+                    children: "Paragraphs have automatic margins above and below, making them perfect for body text.",
+                  }),
+                  Paragraph({
+                    children: "Notice the spacing between paragraphs is handled automatically.",
+                  }),
+                  Paragraph({
+                    indent: 50,
+                    children: "This paragraph has an indent. The first line starts further in.",
+                  }),
+                ],
+              }),
+            ],
           }),
-          Paragraph({
-            children:
-              "Another paragraph follows. Notice the spacing between paragraphs is handled automatically.",
-          }),
-          Paragraph({
-            indent: 30,
-            children:
-              "This paragraph has an indent. The first line starts a bit further in.",
+
+          // Code Component
+          Stack({
+            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            children: [
+              Text({ style: { bold: true }, children: "Code Component" }),
+              Line({ char: "-", length: "fill" }),
+              Stack({
+                style: { padding: { top: 5 }, gap: 10 },
+                children: [
+                  Text({ children: "Inline: Use " }),
+                  Code({ inline: true, children: "console.log()" }),
+
+                  Text({ children: "Code block with border:" }),
+                  Code({
+                    children: "const sum = items.reduce((s, i) => s + i.price, 0);",
+                  }),
+
+                  Text({ children: "Without border:" }),
+                  Code({
+                    border: false,
+                    children: "npm install escp-ts",
+                  }),
+                ],
+              }),
+            ],
           }),
         ],
       }),
 
-      Line({ char: "-", length: "fill" }),
-
-      // Label - Key-value pairs
-      Text({ style: { bold: true }, children: "Label Component:" }),
-      Stack({
-        style: { padding: 10, gap: 5 },
-        children: [
-          Label({ label: "Name", value: "John Doe" }),
-          Label({ label: "Email", value: "john@example.com" }),
-          Label({ label: "Phone", value: "+1 (555) 123-4567" }),
-          Label({
-            label: "Status",
-            children: Badge({ variant: "success", children: "ACTIVE" }),
-          }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Label customization
-      Text({ style: { bold: true }, children: "Label Customization:" }),
-      Stack({
-        style: { padding: 10, gap: 5 },
-        children: [
-          Label({ label: "Default", value: "With colon" }),
-          Label({ label: "No colon", value: "Custom", colon: false }),
-          Label({ label: "Wide label", value: "Data", labelWidth: 200 }),
-          Label({ label: "Narrow", value: "Small label", labelWidth: 80 }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Caption - Small text
-      Text({ style: { bold: true }, children: "Caption Component:" }),
-      Stack({
-        style: { padding: 10, gap: 5 },
-        children: [
-          Text({ children: "Main content here" }),
-          Caption({
-            children: "This is a caption - smaller, italic text for descriptions",
-          }),
-          Text({ children: "Another item" }),
-          Caption({ align: "right", children: "Right-aligned caption" }),
-        ],
-      }),
-
-      Line({ char: "-", length: "fill" }),
-
-      // Code - Code blocks
-      Text({ style: { bold: true }, children: "Code Component:" }),
-      Stack({
-        style: { padding: 10, gap: 10 },
-        children: [
-          Text({ children: "Inline code:" }),
-          Text({ children: "Use " }),
-          Code({ inline: true, children: "console.log()" }),
-          Text({ children: " to debug." }),
-
-          Text({ children: "Code block with border:" }),
-          Code({
-            children:
-              "const total = items.reduce((sum, item) => sum + item.price, 0);",
-          }),
-
-          Text({ children: "Code block without border:" }),
-          Code({
-            border: false,
-            children: "npm install escp-ts",
-          }),
-        ],
-      }),
+      Spacer({ style: { height: 10 } }),
+      Line({ char: "=", length: "fill" }),
     ],
   });
 

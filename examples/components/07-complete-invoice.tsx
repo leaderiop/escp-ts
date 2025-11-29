@@ -1,18 +1,8 @@
 /**
  * Complete Invoice Example
  *
- * This example showcases the full power of the escp-ts component library
- * by creating a professional, data-driven invoice document.
- *
- * Features demonstrated:
- * - All layout components (Stack, Flex, Layout, Spacer)
- * - All content components (Text, Line, Template)
- * - All control flow components (If, Switch, For)
- * - All data display components (Table, Card, Badge, List)
- * - All typography components (Heading, Label, Paragraph, Caption)
- * - All decorative components (Divider, Panel, Section, Border)
- * - Data binding and conditional rendering
- * - Reusable function components
+ * Professional, data-driven invoice using full page width.
+ * Demonstrates all component categories working together.
  */
 
 import { LayoutEngine } from "../../src";
@@ -23,32 +13,30 @@ import {
   Layout,
   Spacer,
   Text,
+  Line,
   Template,
   If,
   Switch,
   Case,
 } from "../../src/jsx";
 import {
-  // Data Display
   Table,
   Card,
   Badge,
   List,
-  // Typography
   Heading,
   Label,
   Caption,
-  // Decorative
   Divider,
   Panel,
-  Section,
 } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
-// ============================================================================
-// REUSABLE FUNCTION COMPONENTS
-// ============================================================================
+// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
+const PRINTABLE_WIDTH = Math.round(13.6 * 360);
+const HALF_WIDTH = Math.floor((PRINTABLE_WIDTH - 80) / 2);
 
+// Reusable Components
 interface CompanyHeaderProps {
   companyName: string;
   tagline: string;
@@ -113,16 +101,8 @@ const OrderStatusBadge: FunctionComponent<OrderStatusBadgeProps> = ({
         value: "overdue",
         children: Badge({ variant: "error", children: "OVERDUE" }),
       }),
-      Case({
-        value: "refunded",
-        children: Badge({ variant: "default", children: "REFUNDED" }),
-      }),
     ],
   });
-
-// ============================================================================
-// INVOICE DOCUMENT
-// ============================================================================
 
 async function main() {
   printSection("Complete Invoice Example");
@@ -163,30 +143,10 @@ async function main() {
       memberSince: "2022",
     },
     items: [
-      {
-        sku: "PROD-001",
-        description: "Premium Widget",
-        qty: 5,
-        unitPrice: 49.99,
-      },
-      {
-        sku: "PROD-002",
-        description: "Standard Gadget",
-        qty: 10,
-        unitPrice: 24.99,
-      },
-      {
-        sku: "PROD-003",
-        description: "Deluxe Accessory",
-        qty: 2,
-        unitPrice: 89.99,
-      },
-      {
-        sku: "SVC-001",
-        description: "Installation Service",
-        qty: 1,
-        unitPrice: 150.0,
-      },
+      { sku: "PROD-001", description: "Premium Widget", qty: 5, unitPrice: 49.99 },
+      { sku: "PROD-002", description: "Standard Gadget", qty: 10, unitPrice: 24.99 },
+      { sku: "PROD-003", description: "Deluxe Accessory", qty: 2, unitPrice: 89.99 },
+      { sku: "SVC-001", description: "Installation Service", qty: 1, unitPrice: 150.0 },
     ],
     subtotal: 679.83,
     discount: 67.98,
@@ -198,77 +158,88 @@ async function main() {
     total: 688.86,
     notes: [
       "Thank you for your business!",
-      "Premium members receive 10% discount on all orders.",
+      "Premium members receive 10% discount.",
       "Free shipping on orders over $500.",
     ],
     terms: [
-      "Payment due within 15 days of invoice date.",
-      "Late payments subject to 1.5% monthly interest.",
-      "All sales are final. Refunds within 30 days only.",
+      "Payment due within 15 days.",
+      "Late payments: 1.5% monthly interest.",
+      "Refunds within 30 days only.",
     ],
   });
 
   const invoice = Layout({
-    style: { width: 576, padding: 20 },
+    style: { padding: 20 },
     children: [
-      // ========================================================================
-      // HEADER
-      // ========================================================================
+      // Header
       CompanyHeader({
         companyName: "ACME Corporation",
         tagline: "Quality Products Since 1985",
       }),
-
       Divider({ variant: "double", spacing: 10 }),
 
-      // Invoice title and number
+      // Invoice title and status
       Flex({
         children: [
           Heading({ level: 2, children: "INVOICE" }),
           Spacer({ flex: true }),
           Stack({
             children: [
-              Label({ label: "Invoice #", value: "" }),
-              Template({
-                template: "{{invoice.number}}",
-                style: { bold: true },
+              Flex({
+                children: [
+                  Text({ children: "Invoice #: " }),
+                  Template({ template: "{{invoice.number}}", style: { bold: true } }),
+                ],
               }),
             ],
           }),
+          Spacer({ style: { width: 100 } }),
+          OrderStatusBadge({ statusPath: "invoice.status" }),
         ],
       }),
 
-      Spacer({ style: { height: 10 } }),
+      Spacer({ style: { height: 15 } }),
 
-      // Invoice status and dates
+      // Invoice Details Panel
       Panel({
         title: "Invoice Details",
-        headerActions: OrderStatusBadge({ statusPath: "invoice.status" }),
-        children: Stack({
-          style: { gap: 5 },
+        children: Flex({
+          style: { gap: 100 },
           children: [
-            Flex({
+            Stack({
+              style: { gap: 3 },
               children: [
-                Label({ label: "Date", labelWidth: 120 }),
-                Template({ template: "{{invoice.date}}" }),
-                Spacer({ flex: true }),
-                Label({ label: "Due Date", labelWidth: 120 }),
-                Template({ template: "{{invoice.dueDate}}" }),
+                Flex({
+                  children: [
+                    Label({ label: "Date", labelWidth: 150 }),
+                    Template({ template: "{{invoice.date}}" }),
+                  ],
+                }),
+                Flex({
+                  children: [
+                    Label({ label: "Due Date", labelWidth: 150 }),
+                    Template({ template: "{{invoice.dueDate}}" }),
+                  ],
+                }),
               ],
             }),
             If({
-              condition: {
-                path: "invoice.status",
-                operator: "eq",
-                value: "paid",
-              },
-              children: Flex({
+              condition: { path: "invoice.status", operator: "eq", value: "paid" },
+              children: Stack({
+                style: { gap: 3 },
                 children: [
-                  Label({ label: "Paid On", labelWidth: 120 }),
-                  Template({ template: "{{invoice.paidDate}}" }),
-                  Spacer({ flex: true }),
-                  Label({ label: "Method", labelWidth: 120 }),
-                  Template({ template: "{{invoice.paymentMethod}}" }),
+                  Flex({
+                    children: [
+                      Label({ label: "Paid On", labelWidth: 150 }),
+                      Template({ template: "{{invoice.paidDate}}" }),
+                    ],
+                  }),
+                  Flex({
+                    children: [
+                      Label({ label: "Method", labelWidth: 150 }),
+                      Template({ template: "{{invoice.paymentMethod}}" }),
+                    ],
+                  }),
                 ],
               }),
             }),
@@ -278,27 +249,20 @@ async function main() {
 
       Spacer({ style: { height: 15 } }),
 
-      // ========================================================================
-      // ADDRESSES
-      // ========================================================================
+      // Addresses (2 columns)
       Flex({
-        style: { gap: 20 },
+        style: { gap: 80 },
         children: [
           Stack({
-            style: { width: "48%" as "fill" },
+            style: { width: HALF_WIDTH },
             children: [AddressBlock({ title: "From", dataPath: "company" })],
           }),
           Stack({
-            style: { width: "48%" as "fill" },
+            style: { width: HALF_WIDTH },
             children: [
               AddressBlock({ title: "Bill To", dataPath: "customer" }),
-              // Premium member badge
               If({
-                condition: {
-                  path: "customer.isPremium",
-                  operator: "eq",
-                  value: true,
-                },
+                condition: { path: "customer.isPremium", operator: "eq", value: true },
                 children: Flex({
                   style: { margin: { top: 5 } },
                   children: [
@@ -314,42 +278,33 @@ async function main() {
         ],
       }),
 
-      Spacer({ style: { height: 15 } }),
+      Spacer({ style: { height: 20 } }),
+      Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 10 } }),
 
-      // ========================================================================
-      // LINE ITEMS
-      // ========================================================================
-      Section({
-        title: "Order Items",
-        level: 3,
-        children: Table({
-          columns: [
-            { header: "SKU", key: "sku", width: 80 },
-            { header: "Description", key: "description", width: 200 },
-            { header: "Qty", key: "qty", width: 50, align: "right" },
-            {
-              header: "Unit Price",
-              key: "unitPrice",
-              width: 90,
-              align: "right",
-            },
-            { header: "Total", key: "lineTotal", width: 90, align: "right" },
-          ],
-          items: "items",
-        }),
+      // Line Items Table
+      Text({ style: { bold: true }, children: "Order Items" }),
+      Table({
+        columns: [
+          { header: "SKU", key: "sku", width: 300 },
+          { header: "Description", key: "description", width: 800 },
+          { header: "Qty", key: "qty", width: 200, align: "right" },
+          { header: "Unit Price", key: "unitPrice", width: 350, align: "right" },
+          { header: "Total", key: "lineTotal", width: 350, align: "right" },
+        ],
+        items: "items",
       }),
 
-      // ========================================================================
-      // TOTALS
-      // ========================================================================
+      Spacer({ style: { height: 15 } }),
+
+      // Totals (right-aligned)
       Flex({
         children: [
           Spacer({ flex: true }),
           Stack({
-            style: { width: 250 },
+            style: { width: 800 },
             children: [
               Divider({ variant: "single", spacing: 5 }),
-
               Flex({
                 children: [
                   Text({ children: "Subtotal:" }),
@@ -357,8 +312,6 @@ async function main() {
                   Template({ template: "${{subtotal}}" }),
                 ],
               }),
-
-              // Discount (conditional)
               If({
                 condition: { path: "discount", operator: "gt", value: 0 },
                 children: Flex({
@@ -370,7 +323,6 @@ async function main() {
                   ],
                 }),
               }),
-
               Flex({
                 children: [
                   Template({ template: "Tax ({{taxRate}}%):" }),
@@ -378,22 +330,14 @@ async function main() {
                   Template({ template: "${{taxAmount}}" }),
                 ],
               }),
-
               Flex({
                 children: [
-                  Text({ children: "Shipping:" }),
+                  Template({ template: "Shipping ({{shippingMethod}}):" }),
                   Spacer({ flex: true }),
-                  Flex({
-                    children: [
-                      Template({ template: "{{shippingMethod}} - " }),
-                      Template({ template: "${{shippingCost}}" }),
-                    ],
-                  }),
+                  Template({ template: "${{shippingCost}}" }),
                 ],
               }),
-
               Divider({ variant: "double", spacing: 5 }),
-
               Flex({
                 style: { bold: true },
                 children: [
@@ -411,15 +355,15 @@ async function main() {
       }),
 
       Spacer({ style: { height: 20 } }),
+      Line({ char: "=", length: "fill" }),
+      Spacer({ style: { height: 10 } }),
 
-      // ========================================================================
-      // NOTES & TERMS
-      // ========================================================================
+      // Notes & Terms (2 columns)
       Flex({
-        style: { gap: 20 },
+        style: { gap: 80 },
         children: [
           Stack({
-            style: { width: "48%" as "fill" },
+            style: { width: HALF_WIDTH },
             children: [
               Panel({
                 title: "Notes",
@@ -432,7 +376,7 @@ async function main() {
             ],
           }),
           Stack({
-            style: { width: "48%" as "fill" },
+            style: { width: HALF_WIDTH },
             children: [
               Panel({
                 title: "Terms & Conditions",
@@ -447,20 +391,16 @@ async function main() {
       }),
 
       Spacer({ style: { height: 15 } }),
-
-      // ========================================================================
-      // FOOTER
-      // ========================================================================
       Divider({ variant: "single", spacing: 10 }),
 
+      // Footer
       Stack({
         style: { gap: 3 },
         children: [
           Text({ align: "center", children: "Thank you for your business!" }),
           Caption({
             align: "center",
-            children:
-              "For questions, contact billing@acme.com or call +1 (555) 123-4567",
+            children: "Contact: billing@acme.com | +1 (555) 123-4567",
           }),
           Caption({
             align: "center",
