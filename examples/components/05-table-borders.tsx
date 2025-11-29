@@ -16,7 +16,19 @@ import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 async function main() {
   printSection("Table Borders");
 
-  const engine = new LayoutEngine({ defaultPaper: DEFAULT_PAPER });
+  const engine = new LayoutEngine({
+    defaultPaper: {
+      widthInches: DEFAULT_PAPER.widthInches,
+      heightInches: DEFAULT_PAPER.heightInches,
+      linesPerPage: DEFAULT_PAPER.linesPerPage,
+      margins: {
+        top: 0,
+        left: 0,
+        right: 20,
+        bottom: 20,
+      },
+    },
+  });
   await engine.initYoga();
 
   const doc = Layout({
@@ -27,7 +39,11 @@ async function main() {
         style: { bold: true, doubleWidth: true },
         children: "Table Borders",
       }),
-      Line({ style: { margin: { top: 4, bottom: 20 } }, char: "=", length: "fill" }),
+      Line({
+        style: { margin: { top: 4, bottom: 20 } },
+        char: "=",
+        length: "fill",
+      }),
 
       // SECTION 1: Border Style Comparison
       Text({
@@ -36,7 +52,8 @@ async function main() {
       }),
       Text({
         style: { margin: { bottom: 12 } },
-        children: "Same data rendered with ASCII, Single-line, and Double-line borders",
+        children:
+          "Same data rendered with ASCII, Single-line, and Double-line borders",
       }),
 
       Flex({
@@ -54,7 +71,12 @@ async function main() {
                 columns: [
                   { header: "Item", key: "item", width: "45%" },
                   { header: "Qty", key: "qty", width: "25%", align: "right" },
-                  { header: "Price", key: "price", width: "30%", align: "right" },
+                  {
+                    header: "Price",
+                    key: "price",
+                    width: "30%",
+                    align: "right",
+                  },
                 ],
                 data: [
                   { item: "Widget A", qty: 10, price: "$25.00" },
@@ -78,7 +100,12 @@ async function main() {
                 columns: [
                   { header: "Item", key: "item", width: "45%" },
                   { header: "Qty", key: "qty", width: "25%", align: "right" },
-                  { header: "Price", key: "price", width: "30%", align: "right" },
+                  {
+                    header: "Price",
+                    key: "price",
+                    width: "30%",
+                    align: "right",
+                  },
                 ],
                 data: [
                   { item: "Widget A", qty: 10, price: "$25.00" },
@@ -102,7 +129,12 @@ async function main() {
                 columns: [
                   { header: "Item", key: "item", width: "45%" },
                   { header: "Qty", key: "qty", width: "25%", align: "right" },
-                  { header: "Price", key: "price", width: "30%", align: "right" },
+                  {
+                    header: "Price",
+                    key: "price",
+                    width: "30%",
+                    align: "right",
+                  },
                 ],
                 data: [
                   { item: "Widget A", qty: 10, price: "$25.00" },
@@ -117,7 +149,11 @@ async function main() {
       }),
 
       // Section Separator
-      Line({ style: { margin: { top: 5, bottom: 20 } }, char: "-", length: "fill" }),
+      Line({
+        style: { margin: { top: 5, bottom: 20 } },
+        char: "-",
+        length: "fill",
+      }),
 
       // SECTION 2: Practical Use Cases
       Text({
@@ -144,14 +180,29 @@ async function main() {
                 columns: [
                   { header: "Product", key: "name", width: "35%" },
                   { header: "SKU", key: "sku", width: "20%" },
-                  { header: "Stock", key: "stock", width: "20%", align: "right" },
+                  {
+                    header: "Stock",
+                    key: "stock",
+                    width: "20%",
+                    align: "right",
+                  },
                   { header: "Status", key: "status", width: "25%" },
                 ],
                 data: [
-                  { name: "Keyboard Pro", sku: "KB-101", stock: 45, status: "OK" },
+                  {
+                    name: "Keyboard Pro",
+                    sku: "KB-101",
+                    stock: 45,
+                    status: "OK",
+                  },
                   { name: "Webcam HD", sku: "WC-200", stock: 8, status: "LOW" },
                   { name: "USB Hub", sku: "UH-400", stock: 120, status: "OK" },
-                  { name: "Headphones", sku: "HP-300", stock: 3, status: "CRIT" },
+                  {
+                    name: "Headphones",
+                    sku: "HP-300",
+                    stock: 3,
+                    status: "CRIT",
+                  },
                 ],
                 border: "ascii",
               }),
@@ -173,7 +224,12 @@ async function main() {
               Table({
                 columns: [
                   { header: "Description", key: "desc", width: "60%" },
-                  { header: "Amount", key: "amount", width: "40%", align: "right" },
+                  {
+                    header: "Amount",
+                    key: "amount",
+                    width: "40%",
+                    align: "right",
+                  },
                 ],
                 data: [
                   { desc: "Professional Services", amount: "$3,000.00" },
@@ -191,7 +247,11 @@ async function main() {
       }),
 
       // Section Separator
-      Line({ style: { margin: { top: 5, bottom: 20 } }, char: "-", length: "fill" }),
+      Line({
+        style: { margin: { top: 5, bottom: 20 } },
+        char: "-",
+        length: "fill",
+      }),
 
       // SECTION 3: Department/Status Tables (Single-line)
       Text({
@@ -200,7 +260,8 @@ async function main() {
       }),
       Text({
         style: { margin: { bottom: 12 } },
-        children: "Clean professional appearance with CP437 box-drawing characters",
+        children:
+          "Clean professional appearance with CP437 box-drawing characters",
       }),
 
       Flex({
@@ -214,11 +275,24 @@ async function main() {
                 columns: [
                   { header: "Department", key: "dept", width: "38%" },
                   { header: "Manager", key: "manager", width: "32%" },
-                  { header: "Budget", key: "budget", width: "30%", align: "right" },
+                  {
+                    header: "Budget",
+                    key: "budget",
+                    width: "30%",
+                    align: "right",
+                  },
                 ],
                 data: [
-                  { dept: "Engineering", manager: "J. Smith", budget: "$2,500,000" },
-                  { dept: "Marketing", manager: "B. Johnson", budget: "$800,000" },
+                  {
+                    dept: "Engineering",
+                    manager: "J. Smith",
+                    budget: "$2,500,000",
+                  },
+                  {
+                    dept: "Marketing",
+                    manager: "B. Johnson",
+                    budget: "$800,000",
+                  },
                   { dept: "Sales", manager: "A. Brown", budget: "$1,200,000" },
                 ],
                 border: "single",
@@ -234,12 +308,29 @@ async function main() {
                 columns: [
                   { header: "Project", key: "project", width: "42%" },
                   { header: "Status", key: "status", width: "28%" },
-                  { header: "Due Date", key: "due", width: "30%", align: "right" },
+                  {
+                    header: "Due Date",
+                    key: "due",
+                    width: "30%",
+                    align: "right",
+                  },
                 ],
                 data: [
-                  { project: "Website Redesign", status: "Active", due: "2024-03-15" },
-                  { project: "Mobile App v2", status: "Review", due: "2024-04-01" },
-                  { project: "API Gateway", status: "Complete", due: "2024-02-28" },
+                  {
+                    project: "Website Redesign",
+                    status: "Active",
+                    due: "2024-03-15",
+                  },
+                  {
+                    project: "Mobile App v2",
+                    status: "Review",
+                    due: "2024-04-01",
+                  },
+                  {
+                    project: "API Gateway",
+                    status: "Complete",
+                    due: "2024-02-28",
+                  },
                 ],
                 border: "single",
               }),
