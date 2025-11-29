@@ -295,6 +295,42 @@ export {
   type VirtualRenderOptions,
 } from './renderer/VirtualRenderer';
 
+// Borders module - bordered text printing
+export {
+  // Box drawing characters
+  CP437_BOX,
+  BOX_DRAWING_CODE_PAGES,
+  ASCII_BORDER_CHARS,
+  supportsBoxDrawing,
+  getSingleBorderChars,
+  getDoubleBorderChars,
+  getBoxDrawingChars,
+  getBorderCharsWithFallback,
+  type BorderCharSet,
+  // Graphics border generator
+  BORDER_GRAPHICS_CONFIG,
+  createHorizontalBorderLine,
+  createBorderCorner,
+  charsToDotsAt120DPI,
+  getGraphicsLineSpacing,
+  type BitImageData,
+  type CornerType,
+  // Border renderer
+  selectRenderMode,
+  renderBorder,
+  normalizePadding,
+  type BorderRenderMode,
+  type BorderStyle,
+  type PaddingSpec as BorderPaddingSpec,
+  type BorderRenderOptions,
+  type BorderRenderResult,
+  // High-level API
+  printBoxedText,
+  printSimpleBox,
+  printDoubleBox,
+  type BoxedTextOptions,
+} from './borders';
+
 // JSX Runtime
 export {
   createElement,

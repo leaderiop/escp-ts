@@ -4,7 +4,8 @@
  */
 
 export { Divider } from './Divider';
-export { Border } from './Border';
+export { Border, BORDER_PRESETS } from './Border';
 export { Box } from './Box';
+export { BoxedText } from './BoxedText';
 export { Panel } from './Panel';
 export { Section } from './Section';

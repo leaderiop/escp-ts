@@ -537,16 +537,22 @@ function renderLineItem(ctx: RenderContext, item: RenderItem): void {
   applyStyle(ctx, item.style);
 
   // Calculate how many characters to print
+  // Use Math.ceil to ensure the line reaches the next element (corner)
+  // A slight overflow is visually better than a gap between line and corner
   const charWidth = Math.round(360 / item.style.cpi);
-  const numChars = Math.max(1, Math.floor(item.data.length / charWidth));
+  const numChars = Math.max(1, Math.ceil(item.data.length / charWidth));
 
   // Generate repeated character
   const lineStr = item.data.char.repeat(numChars);
   const encoded = encodeText(lineStr, ctx.charset, ctx.charTable);
   emit(ctx, encoded);
 
-  // Update X position
-  ctx.currentX = item.x + item.width;
+  // Update X position - CRITICAL: use actual rendered width, not allocated width
+  // This ensures the next item's position calculation is correct.
+  // Bug fix: Previously used item.width which could be larger than rendered chars,
+  // causing subsequent items to skip ESC $ positioning commands.
+  const actualRenderedWidth = numChars * charWidth;
+  ctx.currentX = item.x + actualRenderedWidth;
 }
 
 /**

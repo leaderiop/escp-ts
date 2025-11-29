@@ -32,7 +32,7 @@ import {
   applyConstraints,
   applyFlexItem,
 } from './YogaPropertyMapper';
-import { createTextMeasureFunc, createLineMeasureFunc } from './TextMeasurer';
+import { createTextMeasureFunc } from './TextMeasurer';
 
 /**
  * Build a complete Yoga tree from an escp-ts LayoutNode

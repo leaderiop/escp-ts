@@ -387,13 +387,31 @@ export interface BorderChars {
 
 /**
  * Border component props
- * ASCII box drawing around content
+ * ASCII and CP437 box drawing around content
  */
 export interface BorderProps {
-  variant?: 'single' | 'double' | 'rounded';
+  /** Border variant: ASCII ('single', 'double', 'rounded') or CP437 ('cp437-single', 'cp437-double') */
+  variant?: 'single' | 'double' | 'rounded' | 'cp437-single' | 'cp437-double';
   chars?: BorderChars;
   style?: NodeStyle;
   children?: JSXChildren;
+}
+
+/**
+ * BoxedText component props
+ * Renders text with a border using CP437 box-drawing or ASCII characters
+ */
+export interface BoxedTextProps {
+  /** Text content to display in the box */
+  children?: string | number;
+  /** Horizontal padding inside the box (in characters, default: 1) */
+  padding?: number;
+  /** Border style: 'single', 'double', or 'ascii' */
+  borderStyle?: 'single' | 'double' | 'ascii';
+  /** Use CP437 line-drawing characters (default: true) */
+  useLineDrawing?: boolean;
+  /** Additional style overrides */
+  style?: NodeStyle;
 }
 
 /**

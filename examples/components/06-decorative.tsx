@@ -1,13 +1,15 @@
 /**
  * Decorative Components Example
  *
- * Demonstrates: Divider, Border, Box, Panel, Section
+ * Demonstrates: Divider, Border, Box, BoxedText, Panel, Section
  * Layout: Uses full page width with horizontal sections
+ *
+ * NEW: CP437 box-drawing character support for borders
  */
 
 import { LayoutEngine } from "../../src";
 import { Stack, Flex, Layout, Text, Line, Spacer } from "../../src/jsx";
-import { Divider, Border, Box, Panel, Section } from "../../src/jsx/components";
+import { Divider, Border, Box, BoxedText, Panel, Section } from "../../src/jsx/components";
 import { Badge, Label } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
@@ -52,7 +54,7 @@ async function main() {
             ],
           }),
 
-          // Column 2: Border Component
+          // Column 2: Border Component (ASCII and CP437)
           Stack({
             style: { width: '32%' },
             children: [
@@ -61,7 +63,7 @@ async function main() {
               Stack({
                 style: { padding: { top: 5 }, gap: 10 },
                 children: [
-                  Text({ children: "Single:" }),
+                  Text({ children: "ASCII Single:" }),
                   Border({
                     variant: "single",
                     children: Stack({
@@ -69,9 +71,17 @@ async function main() {
                       children: [Text({ children: "Content" })],
                     }),
                   }),
-                  Text({ children: "Double:" }),
+                  Text({ children: "CP437 Single:" }),
                   Border({
-                    variant: "double",
+                    variant: "cp437-single",
+                    children: Stack({
+                      style: { padding: 5 },
+                      children: [Text({ children: "Content" })],
+                    }),
+                  }),
+                  Text({ children: "CP437 Double:" }),
+                  Border({
+                    variant: "cp437-double",
                     children: Stack({
                       style: { padding: 5 },
                       children: [Text({ children: "Content" })],
@@ -82,25 +92,32 @@ async function main() {
             ],
           }),
 
-          // Column 3: Box Component
+          // Column 3: BoxedText Component (NEW)
           Stack({
             style: { width: '32%' },
             children: [
-              Text({ style: { bold: true }, children: "Box Component" }),
+              Text({ style: { bold: true }, children: "BoxedText Component" }),
               Line({ char: "-", length: "fill" }),
               Stack({
                 style: { padding: { top: 5 }, gap: 10 },
                 children: [
-                  Text({ children: "Padding only:" }),
-                  Box({
-                    padding: 10,
-                    children: Text({ children: "Padded" }),
+                  Text({ children: "Single border:" }),
+                  BoxedText({
+                    borderStyle: "single",
+                    padding: 2,
+                    children: "Hello World",
                   }),
-                  Text({ children: "With border:" }),
-                  Box({
-                    border: true,
-                    padding: 10,
-                    children: Text({ children: "Bordered" }),
+                  Text({ children: "Double border:" }),
+                  BoxedText({
+                    borderStyle: "double",
+                    padding: 2,
+                    children: "Important!",
+                  }),
+                  Text({ children: "ASCII fallback:" }),
+                  BoxedText({
+                    borderStyle: "ascii",
+                    padding: 1,
+                    children: "Universal",
                   }),
                 ],
               }),
@@ -191,7 +208,7 @@ async function main() {
                 title: "Introduction",
                 level: 2,
                 children: Text({
-                  children: "Sections provide semantic grouping with automatic heading.",
+                  children: "Semantic grouping for docs.",
                 }),
               }),
             ],
@@ -222,7 +239,7 @@ async function main() {
                 title: "Conclusion",
                 level: 3,
                 children: Text({
-                  children: "Sections organize document content effectively.",
+                  children: "Organize content cleanly.",
                 }),
               }),
             ],
