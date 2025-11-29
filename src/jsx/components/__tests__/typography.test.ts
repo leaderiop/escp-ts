@@ -220,7 +220,7 @@ describe('Typography Components', () => {
       it('should apply default label width to stack wrapper', () => {
         const node = Label({ label: 'Name', value: 'John' }) as FlexNode;
         const labelStack = node.children[0] as StackNode;
-        expect(labelStack.width).toBe(150);
+        expect(labelStack.width).toBe(250); // Default is ~7 chars at 10 CPI
       });
 
       it('should apply custom label width to stack wrapper', () => {

@@ -166,16 +166,20 @@ function buildStackNode(
   // Stack is NOT a flex row - text should never shrink in a Stack.
   // Stack items flow naturally with gap and can overflow if needed.
   // This is different from Flex which uses flexbox distribution semantics.
-  const hasExplicitWidth = typeof node.width === 'number' || node.width === 'fill';
+  const hasExplicitWidth = typeof node.width === 'number' ||
+                           node.width === 'fill' ||
+                           (typeof node.width === 'string' && node.width.endsWith('%'));
   let childCtx: YogaLayoutContext;
 
   if (hasExplicitWidth) {
-    // Stack with explicit width provides a fixed boundary
+    // Stack with explicit width (including percentage) provides a fixed boundary
     // Text inside should be clipped to fit within the container
     childCtx = { ...ctx, inFlexRow: false, shouldClipText: true };
   } else {
-    // Stack without explicit width - text can overflow
-    childCtx = { ...ctx, inFlexRow: false, shouldClipText: false };
+    // Stack without explicit width - INHERIT parent's shouldClipText
+    // This allows nested components (like Section) to correctly propagate
+    // clipping behavior from their parent with explicit width
+    childCtx = { ...ctx, inFlexRow: false, shouldClipText: ctx.shouldClipText ?? false };
   }
 
   for (let i = 0; i < node.children.length; i++) {
@@ -218,14 +222,16 @@ function buildFlexNode(
 
   // Build children recursively
   // Flex row: text should NOT shrink (Spacers handle flexible distribution).
-  // Text clipping depends on whether Flex has explicit width.
-  const hasExplicitWidth = typeof node.width === 'number' || node.width === 'fill';
+  // Text clipping depends on whether Flex has explicit width OR inherits from parent.
+  const hasExplicitWidth = typeof node.width === 'number' ||
+                           node.width === 'fill' ||
+                           (typeof node.width === 'string' && node.width.endsWith('%'));
   const flexRowCtx: YogaLayoutContext = {
     ...ctx,
     inFlexRow: true,
-    // In Flex with explicit width, text should be clipped to container
-    // In Flex without explicit width, text can overflow
-    shouldClipText: hasExplicitWidth,
+    // In Flex with explicit width (including percentage), text should be clipped to container
+    // In Flex without explicit width, INHERIT parent's shouldClipText
+    shouldClipText: hasExplicitWidth || (ctx.shouldClipText ?? false),
   };
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];

@@ -6,6 +6,9 @@
  * rendered to ESC/P2 printer commands.
  */
 
+import type { TypefaceValue, PrintQualityValue } from '../core/types';
+import { resolveTypefaceValue, resolvePrintQualityValue } from '../core/types';
+
 // ==================== WIDTH/HEIGHT SPECIFICATIONS ====================
 
 /**
@@ -149,6 +152,10 @@ export interface StyleProps {
   condensed?: boolean;
   /** Characters per inch (10, 12, 15, 17, 20) */
   cpi?: number;
+  /** Typeface/font selection - number or string like 'roman', 'courier', 'sans-serif' */
+  typeface?: TypefaceValue;
+  /** Print quality: 'draft' (fast) or 'lq' (letter quality) */
+  printQuality?: PrintQualityValue;
 }
 
 /**
@@ -163,6 +170,10 @@ export interface ResolvedStyle {
   doubleHeight: boolean;
   condensed: boolean;
   cpi: number;
+  /** Resolved typeface ID (always numeric after resolution) */
+  typeface: number;
+  /** Resolved print quality: 0=draft, 1=lq */
+  printQuality: number;
 }
 
 /**
@@ -177,6 +188,8 @@ export const DEFAULT_STYLE: ResolvedStyle = {
   doubleHeight: false,
   condensed: false,
   cpi: 10,
+  typeface: 0,      // ROMAN (default typeface)
+  printQuality: 1,  // LQ (letter quality, default)
 };
 
 // ==================== CONDITIONAL CONTENT ====================
@@ -659,5 +672,11 @@ export function resolveStyle(node: StyleProps, parentStyle: ResolvedStyle): Reso
     doubleHeight: node.doubleHeight ?? parentStyle.doubleHeight,
     condensed: node.condensed ?? parentStyle.condensed,
     cpi: node.cpi ?? parentStyle.cpi,
+    typeface: node.typeface !== undefined
+      ? resolveTypefaceValue(node.typeface)
+      : parentStyle.typeface,
+    printQuality: node.printQuality !== undefined
+      ? resolvePrintQualityValue(node.printQuality)
+      : parentStyle.printQuality,
   };
 }

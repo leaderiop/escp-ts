@@ -944,6 +944,8 @@ export class LayoutEngine {
       doubleHeight: state.font.style.doubleHeight,
       condensed: state.font.style.condensed,
       cpi: state.font.cpi,
+      typeface: state.font.typeface,
+      printQuality: state.font.quality,
     };
 
     // Layout parameters

@@ -423,6 +423,8 @@ function applyStyleProps(node: AnyNode, style: NodeStyle): void {
   if (style.doubleHeight !== undefined) (node as StackNode).doubleHeight = style.doubleHeight;
   if (style.condensed !== undefined) (node as StackNode).condensed = style.condensed;
   if (style.cpi !== undefined) (node as StackNode).cpi = style.cpi;
+  if (style.typeface !== undefined) (node as StackNode).typeface = style.typeface;
+  if (style.printQuality !== undefined) (node as StackNode).printQuality = style.printQuality;
 }
 
 /**

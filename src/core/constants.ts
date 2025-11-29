@@ -188,6 +188,37 @@ export const TYPEFACE = {
   SV_JITTRA: 31,
 } as const;
 
+// Typeface string aliases for user-friendly typeface selection
+// Maps lowercase string names to TYPEFACE numeric IDs
+export const TYPEFACE_ALIASES: Record<string, number> = {
+  'roman': TYPEFACE.ROMAN,
+  'sans-serif': TYPEFACE.SANS_SERIF,
+  'sansserif': TYPEFACE.SANS_SERIF,
+  'courier': TYPEFACE.COURIER,
+  'prestige': TYPEFACE.PRESTIGE,
+  'script': TYPEFACE.SCRIPT,
+  'ocr-b': TYPEFACE.OCR_B,
+  'ocrb': TYPEFACE.OCR_B,
+  'ocr-a': TYPEFACE.OCR_A,
+  'ocra': TYPEFACE.OCR_A,
+  'orator': TYPEFACE.ORATOR,
+  'orator-s': TYPEFACE.ORATOR_S,
+  'orators': TYPEFACE.ORATOR_S,
+  'script-c': TYPEFACE.SCRIPT_C,
+  'scriptc': TYPEFACE.SCRIPT_C,
+  'roman-t': TYPEFACE.ROMAN_T,
+  'romant': TYPEFACE.ROMAN_T,
+  'sans-serif-h': TYPEFACE.SANS_SERIF_H,
+  'sansserifh': TYPEFACE.SANS_SERIF_H,
+  'sv-busaba': TYPEFACE.SV_BUSABA,
+  'svbusaba': TYPEFACE.SV_BUSABA,
+  'sv-jittra': TYPEFACE.SV_JITTRA,
+  'svjittra': TYPEFACE.SV_JITTRA,
+} as const;
+
+// Type for typeface string aliases
+export type TypefaceAlias = keyof typeof TYPEFACE_ALIASES;
+
 // International Character Sets for ESC R command
 export const INTERNATIONAL_CHARSET = {
   USA: 0,

@@ -183,7 +183,7 @@ describe('Visual Regression Tests', () => {
   describe('Card Component Rendering', () => {
     it('should render card content on separate lines', () => {
       const doc = Layout({
-        style: { width: 576, padding: 20 },
+        style: { width: 720, padding: 20 }, // Wider container to prevent text clipping
         children: [
           Card({
             title: 'Customer Info',

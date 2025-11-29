@@ -11,7 +11,7 @@ import type { TextNode, LineNode, ResolvedStyle, TextOrientation, TextOverflow }
 import { CommandBuilder } from '../commands/CommandBuilder';
 import { encodeText, getCharacterWidth } from '../fonts/CharacterSet';
 import { INTERNATIONAL_CHARSET, CHAR_TABLE } from '../core/constants';
-import type { InternationalCharset, CharacterTable } from '../core/types';
+import type { InternationalCharset, CharacterTable, Typeface, PrintQuality } from '../core/types';
 
 // ==================== TEXT TRUNCATION ====================
 
@@ -408,24 +408,39 @@ function applyStyle(ctx: RenderContext, style: ResolvedStyle): void {
     emit(ctx, CommandBuilder.setDoubleHeight(style.doubleHeight));
   }
 
-  // Condensed
-  if (style.condensed !== ctx.currentStyle.condensed) {
-    emit(ctx, style.condensed ? CommandBuilder.selectCondensed() : CommandBuilder.cancelCondensed());
-  }
-
-  // CPI
+  // CPI - Updated to handle all 5 values (10, 12, 15, 17, 20)
+  // Note: 17 CPI = pica base (10 CPI), 20 CPI = elite base (12 CPI)
+  // Condensed mode is controlled separately by the user
   if (style.cpi !== ctx.currentStyle.cpi) {
     switch (style.cpi) {
       case 10:
+      case 17:  // 17 CPI uses pica (10 CPI) as base
         emit(ctx, CommandBuilder.selectPica());
         break;
       case 12:
+      case 20:  // 20 CPI uses elite (12 CPI) as base
         emit(ctx, CommandBuilder.selectElite());
         break;
       case 15:
         emit(ctx, CommandBuilder.selectMicron());
         break;
     }
+  }
+
+  // Condensed - explicit user control
+  // For 17/20 CPI to work correctly, user should set condensed: true
+  if (style.condensed !== ctx.currentStyle.condensed) {
+    emit(ctx, style.condensed ? CommandBuilder.selectCondensed() : CommandBuilder.cancelCondensed());
+  }
+
+  // Typeface (ESC k n command)
+  if (style.typeface !== ctx.currentStyle.typeface) {
+    emit(ctx, CommandBuilder.selectTypeface(style.typeface as Typeface));
+  }
+
+  // Print Quality (ESC x n command)
+  if (style.printQuality !== ctx.currentStyle.printQuality) {
+    emit(ctx, CommandBuilder.selectQuality(style.printQuality as PrintQuality));
   }
 
   ctx.currentStyle = { ...style };
@@ -580,6 +595,8 @@ const DEFAULT_RENDER_STYLE: ResolvedStyle = {
   doubleHeight: false,
   condensed: false,
   cpi: 10,
+  typeface: 0,      // ROMAN (default typeface)
+  printQuality: 1,  // LQ (letter quality)
 };
 
 /**

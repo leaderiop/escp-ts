@@ -140,10 +140,10 @@ async function main() {
       memberSince: "2022",
     },
     items: [
-      { sku: "PROD-001", description: "Premium Widget", qty: 5, unitPrice: 49.99 },
-      { sku: "PROD-002", description: "Standard Gadget", qty: 10, unitPrice: 24.99 },
-      { sku: "PROD-003", description: "Deluxe Accessory", qty: 2, unitPrice: 89.99 },
-      { sku: "SVC-001", description: "Installation Service", qty: 1, unitPrice: 150.0 },
+      { sku: "PROD-001", description: "Premium Widget", qty: 5, unitPrice: 49.99, lineTotal: 249.95 },
+      { sku: "PROD-002", description: "Standard Gadget", qty: 10, unitPrice: 24.99, lineTotal: 249.90 },
+      { sku: "PROD-003", description: "Deluxe Accessory", qty: 2, unitPrice: 89.99, lineTotal: 179.98 },
+      { sku: "SVC-001", description: "Installation Service", qty: 1, unitPrice: 150.0, lineTotal: 150.00 },
     ],
     subtotal: 679.83,
     discount: 67.98,
@@ -206,17 +206,15 @@ async function main() {
             Stack({
               style: { gap: 3 },
               children: [
-                Flex({
-                  children: [
-                    Label({ label: "Date", labelWidth: 150 }),
-                    Template({ template: "{{invoice.date}}" }),
-                  ],
+                Label({
+                  label: "Date",
+                  labelWidth: 180,
+                  children: Template({ template: "{{invoice.date}}" }),
                 }),
-                Flex({
-                  children: [
-                    Label({ label: "Due Date", labelWidth: 150 }),
-                    Template({ template: "{{invoice.dueDate}}" }),
-                  ],
+                Label({
+                  label: "Due",
+                  labelWidth: 180,
+                  children: Template({ template: "{{invoice.dueDate}}" }),
                 }),
               ],
             }),
@@ -225,17 +223,15 @@ async function main() {
               children: Stack({
                 style: { gap: 3 },
                 children: [
-                  Flex({
-                    children: [
-                      Label({ label: "Paid On", labelWidth: 150 }),
-                      Template({ template: "{{invoice.paidDate}}" }),
-                    ],
+                  Label({
+                    label: "Paid",
+                    labelWidth: 180,
+                    children: Template({ template: "{{invoice.paidDate}}" }),
                   }),
-                  Flex({
-                    children: [
-                      Label({ label: "Method", labelWidth: 150 }),
-                      Template({ template: "{{invoice.paymentMethod}}" }),
-                    ],
+                  Label({
+                    label: "Method",
+                    labelWidth: 260,
+                    children: Template({ template: "{{invoice.paymentMethod}}" }),
                   }),
                 ],
               }),
@@ -284,10 +280,10 @@ async function main() {
       Table({
         columns: [
           { header: "SKU", key: "sku", width: 300 },
-          { header: "Description", key: "description", width: 800 },
-          { header: "Qty", key: "qty", width: 200, align: "right" },
-          { header: "Unit Price", key: "unitPrice", width: 350, align: "right" },
-          { header: "Total", key: "lineTotal", width: 350, align: "right" },
+          { header: "Description", key: "description", width: 700 },
+          { header: "Qty", key: "qty", width: 150, align: "right" },
+          { header: "Unit Price", key: "unitPrice", width: 400, align: "right" },
+          { header: "Total", key: "lineTotal", width: 400, align: "right" },
         ],
         items: "items",
       }),

@@ -147,9 +147,9 @@ async function main() {
                 children: Stack({
                   style: { gap: 3 },
                   children: [
-                    Label({ label: "Order #", value: "12345" }),
-                    Label({ label: "Date", value: "2024-12-15" }),
-                    Label({ label: "Carrier", value: "FedEx" }),
+                    Label({ label: "Order", labelWidth: 300, value: "12345" }),
+                    Label({ label: "Date", labelWidth: 300, value: "2024-12-15" }),
+                    Label({ label: "Carrier", labelWidth: 300, value: "FedEx" }),
                   ],
                 }),
               }),

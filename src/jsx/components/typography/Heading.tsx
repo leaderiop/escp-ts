@@ -23,7 +23,7 @@ const HEADING_UNDERLINES: Record<number, string | undefined> = {
 };
 
 export function Heading(props: HeadingProps): LayoutNode {
-  const { level = 1, align, underline, style, children } = props;
+  const { level = 1, align, underline, typeface, style, children } = props;
 
   const levelStyle = HEADING_STYLES[level] || {};
 
@@ -34,9 +34,16 @@ export function Heading(props: HeadingProps): LayoutNode {
     underlineChar = underline;
   }
 
+  // Merge styles: level defaults < style prop < direct typeface prop
+  const mergedStyle: Partial<NodeStyle> = {
+    ...levelStyle,
+    ...style,
+    ...(typeface !== undefined && { typeface }),
+  };
+
   const textNode = Text({
     ...(align && { align }),
-    style: { ...levelStyle, ...style },
+    style: mergedStyle,
     children: children ?? '',
   });
 

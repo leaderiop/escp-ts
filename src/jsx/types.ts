@@ -22,6 +22,8 @@ import type {
   DataContext,
 } from '../layout/nodes';
 
+import type { TypefaceValue, PrintQualityValue } from '../core/types';
+
 // ==================== STYLE INTERFACE ====================
 
 /**
@@ -68,6 +70,10 @@ export interface NodeStyle {
   doubleHeight?: boolean | undefined;
   condensed?: boolean | undefined;
   cpi?: number | undefined;
+  /** Typeface/font selection - number or string like 'roman', 'courier', 'sans-serif' */
+  typeface?: TypefaceValue | undefined;
+  /** Print quality: 'draft' or 'lq' (letter quality) */
+  printQuality?: PrintQualityValue | undefined;
 }
 
 // ==================== COMPONENT PROPS ====================
@@ -296,6 +302,8 @@ export interface HeadingProps {
   level?: 1 | 2 | 3 | 4;
   align?: HAlign;
   underline?: boolean | string;
+  /** Typeface for heading (direct prop, takes precedence over style.typeface) */
+  typeface?: TypefaceValue;
   style?: NodeStyle;
   children?: string | number;
 }
@@ -307,6 +315,8 @@ export interface HeadingProps {
 export interface ParagraphProps {
   align?: HAlign;
   indent?: number;
+  /** Typeface for paragraph text */
+  typeface?: TypefaceValue;
   style?: NodeStyle;
   children?: string | number;
 }
@@ -320,6 +330,8 @@ export interface LabelProps {
   value?: string | number;
   labelWidth?: number;
   colon?: boolean;
+  /** Typeface for label text */
+  typeface?: TypefaceValue;
   style?: NodeStyle;
   children?: JSXChildren;
 }
@@ -330,6 +342,8 @@ export interface LabelProps {
  */
 export interface CaptionProps {
   align?: HAlign;
+  /** Typeface for caption text */
+  typeface?: TypefaceValue;
   style?: NodeStyle;
   children?: string | number;
 }
@@ -341,6 +355,8 @@ export interface CaptionProps {
 export interface CodeProps {
   inline?: boolean;
   border?: boolean;
+  /** Typeface for code (defaults to 'courier' for code blocks) */
+  typeface?: TypefaceValue;
   style?: NodeStyle;
   children?: string | number;
 }
