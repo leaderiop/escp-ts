@@ -1,0 +1,68 @@
+{
+  "name": "@escp/jsx",
+  "version": "1.0.0",
+  "description": "JSX components and layout engine for ESC/P printers",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./jsx-runtime": {
+      "types": "./dist/jsx/jsx-runtime.d.ts",
+      "import": "./dist/jsx/jsx-runtime.js",
+      "require": "./dist/jsx/jsx-runtime.cjs"
+    },
+    "./jsx-dev-runtime": {
+      "types": "./dist/jsx/jsx-dev-runtime.d.ts",
+      "import": "./dist/jsx/jsx-dev-runtime.js",
+      "require": "./dist/jsx/jsx-dev-runtime.cjs"
+    },
+    "./layout": {
+      "types": "./dist/layout/index.d.ts",
+      "import": "./dist/layout/index.js",
+      "require": "./dist/layout/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "keywords": [
+    "escp",
+    "jsx",
+    "layout",
+    "printer",
+    "components"
+  ],
+  "author": "Mohammad AL Mechkor",
+  "license": "MIT",
+  "dependencies": {
+    "@escp/core": "workspace:*",
+    "yoga-layout": "^3.2.1"
+  },
+  "devDependencies": {
+    "@escp/config": "workspace:*",
+    "@types/node": "^20.10.0",
+    "eslint": "^9.39.1",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.14"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -4,8 +4,8 @@ node_modules/
 # Build output
 dist/
 
-# Output files
-output/
+# Output files (only at root level, not in src/)
+/output/
 
 # OS files
 .DS_Store
@@ -26,3 +26,6 @@ pnpm-debug.log*
 
 # Test coverage
 coverage/
+
+# Turbo
+.turbo/

@@ -1,32 +1,12 @@
 {
+  "extends": "./tooling/config/tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "lib": ["ES2022"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": ".",
-    "resolveJsonModule": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "exactOptionalPropertyTypes": true,
-    "noUncheckedIndexedAccess": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "escp-ts",
+    "baseUrl": ".",
     "paths": {
-      "escp-ts/jsx-runtime": ["./src/jsx/jsx-runtime.ts"],
-      "escp-ts/jsx-dev-runtime": ["./src/jsx/jsx-dev-runtime.ts"]
+      "@escp/core": ["packages/core/src/index.ts"],
+      "@escp/jsx": ["packages/jsx/src/index.ts"],
+      "@escp/preview": ["packages/preview/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "examples/**/*.tsx"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+  "exclude": ["node_modules", "**/dist/**"]
 }

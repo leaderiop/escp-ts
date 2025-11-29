@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - ESM module support (`"type": "module"` in package.json)
 - Branded types for type-safe unit handling (`Dots`, `Inches`, `Millimeters`, `Columns`, `Lines`)
 - Factory functions for branded types (`dots()`, `inches()`, `mm()`, `columns()`, `lines()`)
@@ -43,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive tests for error classes and validation utilities
 
 ### Changed
+
 - CommandBuilder now uses shared utilities from `core/utils.ts`
 - LayoutEngine now uses shared utilities from `core/utils.ts`
 - Updated exports in `index.ts` to include all new utilities
@@ -50,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-XX-XX
 
 ### Added
+
 - Initial release
 - Complete ESC/P and ESC/P2 command generation
 - Virtual DOM layout system with stack, flex, and grid layouts

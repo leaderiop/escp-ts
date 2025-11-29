@@ -1,82 +1,38 @@
 {
-  "name": "escp-ts",
-  "version": "1.0.0",
-  "description": "ESC/P and ESC/P2 layout engine for dot matrix printers (EPSON LQ-2090II)",
+  "name": "escp-monorepo",
+  "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    },
-    "./jsx-runtime": {
-      "types": "./dist/jsx/jsx-runtime.d.ts",
-      "import": "./dist/jsx/jsx-runtime.mjs",
-      "require": "./dist/jsx/jsx-runtime.js"
-    },
-    "./jsx-dev-runtime": {
-      "types": "./dist/jsx/jsx-dev-runtime.d.ts",
-      "import": "./dist/jsx/jsx-dev-runtime.mjs",
-      "require": "./dist/jsx/jsx-dev-runtime.js"
-    }
-  },
-  "scripts": {
-    "build": "tsup src/index.ts src/jsx/jsx-runtime.ts src/jsx/jsx-dev-runtime.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts src/jsx/jsx-runtime.ts src/jsx/jsx-dev-runtime.ts --format cjs,esm --dts --watch",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "lint": "eslint src/",
-    "typecheck": "tsc --noEmit",
-    "docs": "typedoc",
-    "docs:watch": "typedoc --watch",
-    "bench": "npx tsx benchmarks/bench.ts"
-  },
-  "keywords": [
-    "escp",
-    "escp2",
-    "epson",
-    "dot-matrix",
-    "printer",
-    "lq-2090",
-    "layout-engine"
-  ],
-  "author": "Mohammad AL Mechkor",
-  "license": "MIT",
+  "description": "ESC/P and ESC/P2 monorepo for dot matrix printers",
   "packageManager": "pnpm@10.13.1",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "test:run": "turbo run test:run",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "typecheck": "turbo run typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "prepare": "husky"
+  },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
-    "@types/node": "^20.10.0",
-    "@vitest/coverage-v8": "^4.0.14",
-    "eslint": "^9.39.1",
-    "sharp": "^0.34.5",
-    "tsup": "^8.0.1",
-    "typedoc": "^0.28.14",
-    "typescript": "^5.3.0",
-    "typescript-eslint": "^8.48.0",
-    "vitest": "^4.0.14"
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.5.3",
+    "turbo": "^2.5.3",
+    "typescript": "^5.3.0"
   },
   "engines": {
     "node": ">=18"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
   "pnpm": {
     "onlyBuiltDependencies": [
-      "a",
       "esbuild",
-      "h",
-      "p",
-      "r",
-      "s",
       "sharp"
     ]
-  },
-  "dependencies": {
-    "yoga-layout": "^3.2.1"
   }
 }

@@ -1,0 +1,15 @@
+{
+  "extends": "@escp/config/tsconfig/library",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@escp/jsx",
+    "paths": {
+      "@escp/jsx/jsx-runtime": ["./src/jsx/jsx-runtime.ts"],
+      "@escp/jsx/jsx-dev-runtime": ["./src/jsx/jsx-dev-runtime.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+}
