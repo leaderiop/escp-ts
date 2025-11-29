@@ -17,11 +17,6 @@ import {
 } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
-// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
-const PRINTABLE_WIDTH = Math.round(13.6 * 360);
-// Column width for 3-column layout with gaps
-const COLUMN_GAP = 60;
-const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection("Data Display Components");
@@ -58,11 +53,11 @@ async function main() {
 
       // Row 1: Badge, Card (side by side)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Column 1: Badge Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Badge Component" }),
               Line({ char: "-", length: "fill" }),
@@ -104,7 +99,7 @@ async function main() {
 
           // Column 2: Card Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Card Component" }),
               Line({ char: "-", length: "fill" }),
@@ -140,7 +135,7 @@ async function main() {
 
           // Column 3: List Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "List Component" }),
               Line({ char: "-", length: "fill" }),

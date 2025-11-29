@@ -32,9 +32,6 @@ import {
 } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
-// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
-const PRINTABLE_WIDTH = Math.round(13.6 * 360);
-const HALF_WIDTH = Math.floor((PRINTABLE_WIDTH - 80) / 2);
 
 // Reusable Components
 interface CompanyHeaderProps {
@@ -254,11 +251,11 @@ async function main() {
         style: { gap: 80 },
         children: [
           Stack({
-            style: { width: HALF_WIDTH },
+            style: { width: '48%' },
             children: [AddressBlock({ title: "From", dataPath: "company" })],
           }),
           Stack({
-            style: { width: HALF_WIDTH },
+            style: { width: '48%' },
             children: [
               AddressBlock({ title: "Bill To", dataPath: "customer" }),
               If({
@@ -363,7 +360,7 @@ async function main() {
         style: { gap: 80 },
         children: [
           Stack({
-            style: { width: HALF_WIDTH },
+            style: { width: '48%' },
             children: [
               Panel({
                 title: "Notes",
@@ -376,7 +373,7 @@ async function main() {
             ],
           }),
           Stack({
-            style: { width: HALF_WIDTH },
+            style: { width: '48%' },
             children: [
               Panel({
                 title: "Terms & Conditions",

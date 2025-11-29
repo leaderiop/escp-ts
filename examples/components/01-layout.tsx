@@ -2,18 +2,12 @@
  * Layout Components Example
  *
  * Demonstrates: Stack, Flex, Layout, Spacer, Fragment
- * Layout: Uses full page width with horizontal sections
+ * Layout: Uses full page width with percentage-based columns
  */
 
 import { LayoutEngine } from '../../src';
 import { Stack, Flex, Layout, Spacer, Text, Line } from '../../src/jsx';
 import { renderPreview, DEFAULT_PAPER, printSection } from '../_helpers';
-
-// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
-const PRINTABLE_WIDTH = Math.round(13.6 * 360);
-// Column width for 3-column layout with gaps
-const COLUMN_GAP = 60;
-const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection('Layout Components');
@@ -29,13 +23,13 @@ async function main() {
       Line({ char: '=', length: 'fill' }),
       Spacer({ style: { height: 20 } }),
 
-      // Row 1: Stack examples (3 columns)
+      // Row 1: Stack examples (3 columns using percentage widths)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Column 1: Stack Vertical
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: 'Stack (Vertical)' }),
               Line({ char: '-', length: 'fill' }),
@@ -52,7 +46,7 @@ async function main() {
 
           // Column 2: Stack Horizontal
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: 'Stack (Horizontal)' }),
               Line({ char: '-', length: 'fill' }),
@@ -70,7 +64,7 @@ async function main() {
 
           // Column 3: Nested Layouts
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: 'Nested Layouts' }),
               Line({ char: '-', length: 'fill' }),

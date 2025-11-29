@@ -17,11 +17,6 @@ import {
 } from "../../src/jsx";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
-// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
-const PRINTABLE_WIDTH = Math.round(13.6 * 360);
-// Column width for 3-column layout with gaps
-const COLUMN_GAP = 60;
-const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection("Content Components");
@@ -56,11 +51,11 @@ async function main() {
 
       // Row 1: Text styles and Line types (3 columns)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Column 1: Text Styles
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Text Styles" }),
               Line({ char: "-", length: "fill" }),
@@ -82,7 +77,7 @@ async function main() {
 
           // Column 2: Text Alignment
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Text Alignment" }),
               Line({ char: "-", length: "fill" }),
@@ -99,7 +94,7 @@ async function main() {
 
           // Column 3: Line Types
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Line Types" }),
               Line({ char: "-", length: "fill" }),
@@ -131,11 +126,11 @@ async function main() {
       Spacer({ style: { height: 5 } }),
 
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Customer info
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ children: "Customer Info:" }),
               Stack({
@@ -151,7 +146,7 @@ async function main() {
 
           // Order info
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ children: "Order Info:" }),
               Stack({
@@ -170,7 +165,7 @@ async function main() {
 
           // Template with alignment
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ children: "Aligned Template:" }),
               Flex({

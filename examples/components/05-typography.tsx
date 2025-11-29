@@ -17,11 +17,6 @@ import {
 } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
-// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
-const PRINTABLE_WIDTH = Math.round(13.6 * 360);
-// Column width for 3-column layout with gaps
-const COLUMN_GAP = 60;
-const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection("Typography Components");
@@ -39,11 +34,11 @@ async function main() {
 
       // Row 1: Heading levels (3 columns)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Column 1: Heading Levels
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Heading Levels" }),
               Line({ char: "-", length: "fill" }),
@@ -61,7 +56,7 @@ async function main() {
 
           // Column 2: Heading with Underline
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Heading Underline" }),
               Line({ char: "-", length: "fill" }),
@@ -78,7 +73,7 @@ async function main() {
 
           // Column 3: Heading Alignment
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Heading Alignment" }),
               Line({ char: "-", length: "fill" }),
@@ -101,11 +96,11 @@ async function main() {
 
       // Row 2: Label and Caption (2 columns)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Label Component
           Stack({
-            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "Label Component" }),
               Line({ char: "-", length: "fill" }),
@@ -130,7 +125,7 @@ async function main() {
 
           // Caption Component
           Stack({
-            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "Caption Component" }),
               Line({ char: "-", length: "fill" }),
@@ -154,11 +149,11 @@ async function main() {
 
       // Row 3: Paragraph and Code (2 columns)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Paragraph Component
           Stack({
-            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "Paragraph Component" }),
               Line({ char: "-", length: "fill" }),
@@ -182,7 +177,7 @@ async function main() {
 
           // Code Component
           Stack({
-            style: { width: Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2) },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "Code Component" }),
               Line({ char: "-", length: "fill" }),

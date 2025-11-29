@@ -21,11 +21,6 @@ import {
 } from "../../src/jsx";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
-// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
-const PRINTABLE_WIDTH = Math.round(13.6 * 360);
-// Column width for 2-column layout with gap
-const COLUMN_GAP = 80;
-const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP) / 2);
 
 async function main() {
   printSection("Control Flow Components");
@@ -63,11 +58,11 @@ async function main() {
 
       // Row 1: If and Switch (2 columns)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 80 },
         children: [
           // Column 1: If Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "If Component" }),
               Line({ char: "-", length: "fill" }),
@@ -108,7 +103,7 @@ async function main() {
 
           // Column 2: Switch/Case Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "Switch/Case Component" }),
               Line({ char: "-", length: "fill" }),
@@ -195,10 +190,10 @@ async function main() {
 
       // For with separator and empty state (2 columns)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 80 },
         children: [
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "For with Separator:" }),
               Stack({
@@ -216,7 +211,7 @@ async function main() {
           }),
 
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '48%' },
             children: [
               Text({ style: { bold: true }, children: "For with Empty State:" }),
               Stack({

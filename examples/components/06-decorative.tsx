@@ -11,11 +11,6 @@ import { Divider, Border, Box, Panel, Section } from "../../src/jsx/components";
 import { Badge, Label } from "../../src/jsx/components";
 import { renderPreview, DEFAULT_PAPER, printSection } from "../_helpers";
 
-// Calculate printable width: 13.6 inches * 360 DPI = 4896 dots
-const PRINTABLE_WIDTH = Math.round(13.6 * 360);
-// Column width for 3-column layout with gaps
-const COLUMN_GAP = 60;
-const COLUMN_WIDTH = Math.floor((PRINTABLE_WIDTH - COLUMN_GAP * 2) / 3);
 
 async function main() {
   printSection("Decorative Components");
@@ -33,11 +28,11 @@ async function main() {
 
       // Row 1: Divider and Border (3 columns)
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Column 1: Divider Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Divider Component" }),
               Line({ char: "-", length: "fill" }),
@@ -59,7 +54,7 @@ async function main() {
 
           // Column 2: Border Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Border Component" }),
               Line({ char: "-", length: "fill" }),
@@ -89,7 +84,7 @@ async function main() {
 
           // Column 3: Box Component
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Text({ style: { bold: true }, children: "Box Component" }),
               Line({ char: "-", length: "fill" }),
@@ -124,11 +119,11 @@ async function main() {
       Spacer({ style: { height: 5 } }),
 
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           // Simple Panel
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Panel({
                 title: "Simple Panel",
@@ -144,7 +139,7 @@ async function main() {
 
           // Panel with Badge
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Panel({
                 title: "Order Status",
@@ -163,7 +158,7 @@ async function main() {
 
           // Warning Panel
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Panel({
                 title: "Warning",
@@ -187,10 +182,10 @@ async function main() {
       Spacer({ style: { height: 5 } }),
 
       Flex({
-        style: { gap: COLUMN_GAP },
+        style: { gap: 60 },
         children: [
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Section({
                 title: "Introduction",
@@ -203,7 +198,7 @@ async function main() {
           }),
 
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Section({
                 title: "Features",
@@ -221,7 +216,7 @@ async function main() {
           }),
 
           Stack({
-            style: { width: COLUMN_WIDTH },
+            style: { width: '32%' },
             children: [
               Section({
                 title: "Conclusion",
