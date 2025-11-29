@@ -54,17 +54,19 @@ const invoice = stack()
       .cell('Item', { bold: true })
       .cell('Price', { bold: true })
       .headerRow()
-      .cell('5').cell('Widget A').cell('$50.00').row()
-      .cell('3').cell('Widget B').cell('$75.00').row()
+      .cell('5')
+      .cell('Widget A')
+      .cell('$50.00')
+      .row()
+      .cell('3')
+      .cell('Widget B')
+      .cell('$75.00')
+      .row()
   )
   .build();
 
 // Render to printer commands
-engine
-  .initialize()
-  .setQuality(PRINT_QUALITY.LQ)
-  .render(invoice)
-  .formFeed();
+engine.initialize().setQuality(PRINT_QUALITY.LQ).render(invoice).formFeed();
 
 // Get output as Uint8Array
 const output = engine.getOutput();
@@ -107,9 +109,7 @@ const commands = [
 ];
 
 // Concatenate all command arrays
-const output = new Uint8Array(
-  commands.reduce((acc, cmd) => [...acc, ...cmd], [] as number[])
-);
+const output = new Uint8Array(commands.reduce((acc, cmd) => [...acc, ...cmd], [] as number[]));
 ```
 
 ## Layout System
@@ -122,14 +122,14 @@ Arranges children vertically (default) or horizontally:
 
 ```typescript
 stack()
-  .direction('vertical')  // or 'horizontal'
-  .align('center')        // 'left', 'center', 'right'
-  .gap(10)                // space between children
-  .padding(20)            // uniform padding
+  .direction('vertical') // or 'horizontal'
+  .align('center') // 'left', 'center', 'right'
+  .gap(10) // space between children
+  .padding(20) // uniform padding
   .padding({ top: 10, right: 20, bottom: 10, left: 20 })
   .text('Line 1')
   .text('Line 2')
-  .build()
+  .build();
 ```
 
 ### Flex
@@ -138,12 +138,12 @@ Arranges children horizontally with flexible space distribution:
 
 ```typescript
 flex()
-  .justify('space-between')  // 'start', 'center', 'end', 'space-between', 'space-around'
-  .alignItems('center')      // 'top', 'center', 'bottom'
+  .justify('space-between') // 'start', 'center', 'end', 'space-between', 'space-around'
+  .alignItems('center') // 'top', 'center', 'bottom'
   .gap(20)
   .text('Left')
   .text('Right')
-  .build()
+  .build();
 ```
 
 ### Grid
@@ -151,19 +151,26 @@ flex()
 Creates table-like layouts with columns and rows:
 
 ```typescript
-grid([100, 'fill', 150])  // Column widths: fixed, flexible, fixed
+grid([100, 'fill', 150]) // Column widths: fixed, flexible, fixed
   .columnGap(20)
   .rowGap(8)
   .cell('Header 1', { bold: true })
   .cell('Header 2', { bold: true })
   .cell('Header 3', { bold: true })
   .headerRow()
-  .cell('Data 1').cell('Data 2').cell('Data 3').row()
-  .cell('Data 4').cell('Data 5').cell('Data 6').row()
-  .build()
+  .cell('Data 1')
+  .cell('Data 2')
+  .cell('Data 3')
+  .row()
+  .cell('Data 4')
+  .cell('Data 5')
+  .cell('Data 6')
+  .row()
+  .build();
 ```
 
 Column width specifications:
+
 - **Number**: Fixed width in dots (1/360 inch)
 - **'auto'**: Size to content
 - **'fill'**: Expand to fill available space
@@ -178,20 +185,20 @@ text('Styled text', {
   doubleWidth: true,
   doubleHeight: true,
   condensed: true,
-  cpi: 12,              // Characters per inch: 10, 12, 15, 17, 20
-  align: 'center',      // 'left', 'center', 'right'
-})
+  cpi: 12, // Characters per inch: 10, 12, 15, 17, 20
+  align: 'center', // 'left', 'center', 'right'
+});
 ```
 
 ### Spacers and Lines
 
 ```typescript
 // Vertical space
-spacer(20)
+spacer(20);
 
 // Horizontal line
-line('-', 'fill')      // Fill available width
-line('=', 500)         // Fixed width in dots
+line('-', 'fill'); // Fill available width
+line('=', 500); // Fixed width in dots
 ```
 
 ## Composable Components
@@ -203,17 +210,8 @@ const companyHeader = (name: string): FlexBuilder =>
   flex()
     .width('fill')
     .justify('space-between')
-    .add(
-      stack()
-        .text(name, { bold: true, doubleWidth: true })
-        .text('123 Business Street')
-    )
-    .add(
-      stack()
-        .align('right')
-        .text('INVOICE', { bold: true })
-        .text('Page 1 of 1')
-    );
+    .add(stack().text(name, { bold: true, doubleWidth: true }).text('123 Business Street'))
+    .add(stack().align('right').text('INVOICE', { bold: true }).text('Page 1 of 1'));
 
 const itemsTable = (items: Item[]): StackBuilder => {
   const tableGrid = grid([60, 'fill', 100, 120])
@@ -224,7 +222,7 @@ const itemsTable = (items: Item[]): StackBuilder => {
     .cell('TOTAL', { bold: true })
     .headerRow();
 
-  items.forEach(item => {
+  items.forEach((item) => {
     tableGrid
       .cell(item.qty.toString())
       .cell(item.description)
@@ -233,10 +231,7 @@ const itemsTable = (items: Item[]): StackBuilder => {
       .row();
   });
 
-  return stack()
-    .add(line('=', 'fill'))
-    .add(tableGrid)
-    .add(line('=', 'fill'));
+  return stack().add(line('=', 'fill')).add(tableGrid).add(line('=', 'fill'));
 };
 
 // Compose into final document
@@ -257,14 +252,14 @@ import { LayoutEngine, BIT_IMAGE_MODE } from 'escp-ts';
 const image = {
   width: 200,
   height: 48,
-  data: imagePixels  // Uint8Array of grayscale values
+  data: imagePixels, // Uint8Array of grayscale values
 };
 
 engine
   .initialize()
   .printImage(image, {
     mode: BIT_IMAGE_MODE.HEX_DENSITY_24PIN,
-    dithering: 'floyd-steinberg'  // 'none', 'threshold', 'ordered', 'floyd-steinberg', 'atkinson'
+    dithering: 'floyd-steinberg', // 'none', 'threshold', 'ordered', 'floyd-steinberg', 'atkinson'
   })
   .formFeed();
 ```
@@ -275,10 +270,10 @@ engine
 engine
   .initialize()
   .printBarcode('123456789012', {
-    type: 0,           // EAN-13
+    type: 0, // EAN-13
     moduleWidth: 2,
     height: 80,
-    hriPosition: 2,    // Human-readable text position
+    hriPosition: 2, // Human-readable text position
   })
   .formFeed();
 ```
@@ -294,15 +289,18 @@ import sharp from 'sharp';
 const engine = new LayoutEngine();
 engine.initialize().println('Test Document').formFeed();
 
-const renderer = new VirtualRenderer({
-  widthInches: 8.5,
-  heightInches: 11,
-  margins: { top: 90, bottom: 90, left: 90, right: 90 },
-  linesPerPage: 66,
-}, {
-  scale: 1,
-  showMargins: false,
-});
+const renderer = new VirtualRenderer(
+  {
+    widthInches: 8.5,
+    heightInches: 11,
+    margins: { top: 90, bottom: 90, left: 90, right: 90 },
+    linesPerPage: 66,
+  },
+  {
+    scale: 1,
+    showMargins: false,
+  }
+);
 
 renderer.render(engine.getOutput());
 const pages = renderer.getPages();
@@ -310,10 +308,10 @@ const pages = renderer.getPages();
 // Convert to PNG
 const page = pages[0];
 await sharp(Buffer.from(page.data), {
-  raw: { width: page.width, height: page.height, channels: 1 }
+  raw: { width: page.width, height: page.height, channels: 1 },
 })
-.png()
-.toFile('preview.png');
+  .png()
+  .toFile('preview.png');
 ```
 
 ## Paper Configuration
@@ -323,10 +321,10 @@ import { LayoutEngine } from 'escp-ts';
 
 const engine = new LayoutEngine({
   defaultPaper: {
-    widthInches: 14.847,    // Custom paper width
-    heightInches: 8.542,    // Custom paper height
+    widthInches: 14.847, // Custom paper width
+    heightInches: 8.542, // Custom paper height
     margins: {
-      top: 90,              // In dots (1/360 inch)
+      top: 90, // In dots (1/360 inch)
       bottom: 90,
       left: 225,
       right: 225,
@@ -342,9 +340,9 @@ const engine = new LayoutEngine({
 import { LayoutEngine, PRINT_QUALITY, TYPEFACE } from 'escp-ts';
 
 engine
-  .setQuality(PRINT_QUALITY.LQ)      // DRAFT, LQ (Letter Quality)
-  .setTypeface(TYPEFACE.ROMAN)       // ROMAN, SANS_SERIF, COURIER, etc.
-  .setCpi(12)                        // 10, 12, 15, 17, 20
+  .setQuality(PRINT_QUALITY.LQ) // DRAFT, LQ (Letter Quality)
+  .setTypeface(TYPEFACE.ROMAN) // ROMAN, SANS_SERIF, COURIER, etc.
+  .setCpi(12) // 10, 12, 15, 17, 20
   .setCondensed(true)
   .setDoubleWidth(true)
   .setDoubleHeight(true);
@@ -356,46 +354,46 @@ engine
 
 Main entry point for building documents.
 
-| Method | Description |
-|--------|-------------|
-| `initialize()` | Initialize printer and reset settings |
-| `render(node)` | Render a layout node to commands |
-| `print(text)` | Print text without line feed |
-| `println(text)` | Print text with line feed |
-| `printCentered(text)` | Print centered text |
-| `printRightAligned(text)` | Print right-aligned text |
-| `printImage(image, options)` | Print grayscale image |
-| `printBarcode(data, options)` | Print barcode |
-| `formFeed()` | Advance to next page |
-| `finalize()` | Finalize document |
-| `getOutput()` | Get ESC/P2 commands as Uint8Array |
-| `toHex()` | Get output as hex string |
-| `toBase64()` | Get output as base64 string |
+| Method                        | Description                           |
+| ----------------------------- | ------------------------------------- |
+| `initialize()`                | Initialize printer and reset settings |
+| `render(node)`                | Render a layout node to commands      |
+| `print(text)`                 | Print text without line feed          |
+| `println(text)`               | Print text with line feed             |
+| `printCentered(text)`         | Print centered text                   |
+| `printRightAligned(text)`     | Print right-aligned text              |
+| `printImage(image, options)`  | Print grayscale image                 |
+| `printBarcode(data, options)` | Print barcode                         |
+| `formFeed()`                  | Advance to next page                  |
+| `finalize()`                  | Finalize document                     |
+| `getOutput()`                 | Get ESC/P2 commands as Uint8Array     |
+| `toHex()`                     | Get output as hex string              |
+| `toBase64()`                  | Get output as base64 string           |
 
 ### Builders
 
-| Builder | Factory | Description |
-|---------|---------|-------------|
-| `StackBuilder` | `stack()` | Vertical/horizontal stacking |
-| `FlexBuilder` | `flex()` | Flexible horizontal layout |
-| `GridBuilder` | `grid(columns)` | Table layout |
+| Builder        | Factory         | Description                  |
+| -------------- | --------------- | ---------------------------- |
+| `StackBuilder` | `stack()`       | Vertical/horizontal stacking |
+| `FlexBuilder`  | `flex()`        | Flexible horizontal layout   |
+| `GridBuilder`  | `grid(columns)` | Table layout                 |
 
 ### Node Factories
 
-| Function | Description |
-|----------|-------------|
-| `text(content, options)` | Create text node |
-| `spacer(size, flex)` | Create spacer node |
-| `line(char, length)` | Create line node |
+| Function                 | Description        |
+| ------------------------ | ------------------ |
+| `text(content, options)` | Create text node   |
+| `spacer(size, flex)`     | Create spacer node |
+| `line(char, length)`     | Create line node   |
 
 ### Constants
 
 ```typescript
 import {
-  PRINT_QUALITY,      // DRAFT, LQ
-  TYPEFACE,           // ROMAN, SANS_SERIF, COURIER, etc.
-  JUSTIFICATION,      // LEFT, CENTER, RIGHT, FULL
-  BIT_IMAGE_MODE,     // Various density modes
+  PRINT_QUALITY, // DRAFT, LQ
+  TYPEFACE, // ROMAN, SANS_SERIF, COURIER, etc.
+  JUSTIFICATION, // LEFT, CENTER, RIGHT, FULL
+  BIT_IMAGE_MODE, // Various density modes
   INTERNATIONAL_CHARSET,
   CHAR_TABLE,
 } from 'escp-ts';
@@ -421,20 +419,23 @@ The library uses dots as the primary unit (1/360 inch at 360 DPI):
 - At 10 CPI, each character is 36 dots wide
 
 Conversion helpers:
+
 ```typescript
 import { inchesToDots, dotsToInches, mmToDots } from 'escp-ts';
 
-const dots = inchesToDots(1);    // 360
+const dots = inchesToDots(1); // 360
 const inches = dotsToInches(360); // 1
-const mm = mmToDots(25.4);       // 360
+const mm = mmToDots(25.4); // 360
 ```
 
 ## Printer Compatibility
 
 Tested with:
+
 - EPSON LQ-2090II (24-pin)
 
 Should work with other ESC/P2 compatible printers:
+
 - EPSON LQ series
 - EPSON FX series
 - Other ESC/P2 compatible dot matrix printers

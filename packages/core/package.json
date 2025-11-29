@@ -1,0 +1,55 @@
+{
+  "name": "@escp/core",
+  "version": "1.0.0",
+  "description": "Core ESC/P and ESC/P2 functionality for dot matrix printers",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./borders": {
+      "types": "./dist/borders/index.d.ts",
+      "import": "./dist/borders/index.js",
+      "require": "./dist/borders/index.cjs"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "clean": "rm -rf dist .turbo"
+  },
+  "keywords": [
+    "escp",
+    "escp2",
+    "epson",
+    "dot-matrix",
+    "printer"
+  ],
+  "author": "Mohammad AL Mechkor",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {
+    "@escp/config": "workspace:*",
+    "@types/node": "^20.10.0",
+    "eslint": "^9.39.1",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.14"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

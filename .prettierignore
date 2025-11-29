@@ -1,0 +1,20 @@
+# Build outputs
+dist/
+coverage/
+
+# Dependencies
+node_modules/
+
+# Turbo cache
+.turbo/
+
+# Lock files
+pnpm-lock.yaml
+
+# Generated files
+*.d.ts
+*.d.cts
+*.d.mts
+
+# Claude agent files (internal)
+.claude/

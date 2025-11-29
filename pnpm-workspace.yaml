@@ -1,1 +1,4 @@
-allowBuild: sharp
+packages:
+  - "packages/*"
+  - "tooling/*"
+  - "apps/*"

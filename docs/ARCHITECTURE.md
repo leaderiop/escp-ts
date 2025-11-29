@@ -64,7 +64,7 @@ src/
 Defines branded types for type-safe unit handling:
 
 ```typescript
-type Dots = Brand<number, 'dots'>;      // 1/360 inch
+type Dots = Brand<number, 'dots'>; // 1/360 inch
 type Inches = Brand<number, 'inches'>;
 type Millimeters = Brand<number, 'mm'>;
 type Columns = Brand<number, 'columns'>;
@@ -121,12 +121,12 @@ EscpError (base)
 Static methods for generating ESC/P2 command sequences:
 
 ```typescript
-CommandBuilder.initialize()      // ESC @
-CommandBuilder.boldOn()          // ESC E
-CommandBuilder.boldOff()         // ESC F
-CommandBuilder.setLineSpacing()  // ESC 3 n
-CommandBuilder.setPosition()     // ESC $ nL nH
-CommandBuilder.printImage()      // ESC * mode...
+CommandBuilder.initialize(); // ESC @
+CommandBuilder.boldOn(); // ESC E
+CommandBuilder.boldOff(); // ESC F
+CommandBuilder.setLineSpacing(); // ESC 3 n
+CommandBuilder.setPosition(); // ESC $ nL nH
+CommandBuilder.printImage(); // ESC * mode...
 ```
 
 All methods return `Uint8Array` for efficient binary handling.
@@ -143,6 +143,7 @@ Declarative node types:
 - **Leaf nodes**: `TextNode`, `SpacerNode`, `LineNode`
 
 Each node can have:
+
 - Width/height specifications (`number | 'auto' | 'fill'`)
 - Padding
 - Style properties (bold, italic, underline, etc.)
@@ -155,13 +156,7 @@ Fluent API for constructing layouts:
 const layout = stack()
   .gap(20)
   .text('Header', { bold: true })
-  .child(
-    flex()
-      .justify('space-between')
-      .text('Left')
-      .text('Right')
-      .build()
-  )
+  .child(flex().justify('space-between').text('Left').text('Right').build())
   .build();
 ```
 
