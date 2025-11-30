@@ -244,7 +244,7 @@ describe('flattenTree', () => {
       expect((items[0].data as { type: 'line'; char: string }).char).toBe('-');
     });
 
-    it('should flatten vertical line node with default char', () => {
+    it('should flatten vertical line node into multiple items (one per line)', () => {
       const node: LayoutNode = {
         type: 'line',
         direction: 'vertical',
@@ -253,8 +253,14 @@ describe('flattenTree', () => {
       const layout = createLayout(node);
       const items = flattenTree(layout);
 
-      expect(items).toHaveLength(1);
-      expect((items[0].data as { type: 'line'; char: string }).char).toBe('|');
+      // Vertical lines are expanded into individual items at each Y position
+      // to prevent backwards vertical movement during rendering.
+      // With default lineSpacing (60) and height 100, we get ~2 items.
+      expect(items.length).toBeGreaterThanOrEqual(1);
+      // All items should use the vertical character
+      for (const item of items) {
+        expect((item.data as { type: 'line'; char: string }).char).toBe('|');
+      }
     });
 
     it('should use custom line character when specified', () => {

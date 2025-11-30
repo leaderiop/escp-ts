@@ -1204,6 +1204,78 @@ describe('Edge Cases', () => {
       }) as StackNode;
       expect(result.flexGrow).toBe(1);
       expect(result.flexShrink).toBe(0);
+
+      // ==================== BADGE COMPONENT TESTS ====================
+
+      import { Badge } from '../typography/Badge';
+      import { Label } from '../typography/Label';
+      import type { TextNode, FlexNode } from '../../../layout/nodes';
+
+      describe('Badge', () => {
+        describe('basic functionality', () => {
+          it('should wrap content in brackets', () => {
+            const result = Badge({ children: 'ACTIVE' }) as TextNode;
+            expect(result.type).toBe('text');
+            expect(result.content).toBe('[ACTIVE]');
+          });
+
+          it('should handle string children', () => {
+            const result = Badge({ children: 'STATUS' }) as TextNode;
+            expect(result.content).toBe('[STATUS]');
+          });
+
+          it('should apply variant styles', () => {
+            const success = Badge({ variant: 'success', children: 'OK' }) as TextNode;
+            expect(success.bold).toBe(true);
+
+            const warning = Badge({ variant: 'warning', children: 'WARN' }) as TextNode;
+            expect(warning.italic).toBe(true);
+          });
+        });
+
+        describe('[[object Object]] bug fix', () => {
+          it('should NOT produce [object Object] when children is a TextNode array', () => {
+            // This simulates what happens when Badge is used in JSX
+            // JSX transforms children into LayoutNode arrays via flattenChildren
+            const textNode: TextNode = { type: 'text', content: 'ACTIVE' };
+            const result = Badge({ children: [textNode] as unknown as string }) as TextNode;
+
+            // Should extract text content from TextNode, not stringify the object
+            expect(result.content).not.toContain('[object Object]');
+            expect(result.content).toBe('[ACTIVE]');
+          });
+
+          it('should handle mixed children (strings and TextNodes)', () => {
+            const textNode: TextNode = { type: 'text', content: 'PAID' };
+            // When JSX has multiple children they become an array
+            const result = Badge({ children: [textNode] as unknown as string }) as TextNode;
+
+            expect(result.content).toBe('[PAID]');
+          });
+        });
+      });
+
+      describe('Label with Badge children', () => {
+        it('should properly render Badge as value content', () => {
+          // Simulate JSX: <Label label="Status"><Badge>ACTIVE</Badge></Label>
+          // Badge returns a TextNode, which becomes children for Label
+          const badgeResult = Badge({ children: 'ACTIVE' }) as TextNode;
+          const result = Label({
+            label: 'Status',
+            labelWidth: 100,
+            children: badgeResult,
+          }) as FlexNode;
+
+          expect(result.type).toBe('flex');
+          expect(result.children.length).toBe(2);
+
+          // Second child should be the Badge's TextNode
+          const valueNode = result.children[1] as TextNode;
+          expect(valueNode.type).toBe('text');
+          expect(valueNode.content).toBe('[ACTIVE]');
+          expect(valueNode.content).not.toContain('[object Object]');
+        });
+      });
       expect(result.flexBasis).toBe(100);
     });
 

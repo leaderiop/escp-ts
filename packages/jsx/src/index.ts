@@ -200,6 +200,25 @@ export {
   type ResolverOptions,
 } from './layout/resolver';
 
+// Border-Box Layout Utilities
+export {
+  calculateBorderThickness,
+  calculateCharWidth,
+  resolveContentDimensions,
+  resolveInnerContentDimensions,
+  getHorizontalBorderThickness,
+  getVerticalBorderThickness,
+  resolveBorderVariant,
+  hasBorder,
+  DOTS_PER_INCH,
+  DEFAULT_LINE_SPACING,
+  DEFAULT_CPI,
+  type BorderThickness,
+  type BorderVariant,
+  type BorderConfig,
+  type ResolvedContentDimensions,
+} from './layout/borderBox';
+
 // JSX Runtime
 export { createElement, Fragment, jsx, jsxs, jsxDEV } from './jsx';
 
@@ -209,6 +228,7 @@ export * from './jsx/components';
 // JSX types
 export type {
   NodeStyle,
+  BaseProps,
   StackProps,
   FlexProps,
   TextProps,

@@ -4,9 +4,11 @@
  * Usage: pnpm examples:list
  */
 
-import { examples, qaTests } from '../index';
+import { examples, qaTests, type ExampleMetadata, type QaTestMetadata } from '../index';
 
-function printTable(items: typeof examples, title: string) {
+type AnyMetadata = ExampleMetadata | QaTestMetadata;
+
+function printTable(items: AnyMetadata[], title: string) {
   console.log(`\n${title}`);
   console.log('='.repeat(60));
 
@@ -18,7 +20,7 @@ function printTable(items: typeof examples, title: string) {
       acc[item.category].push(item);
       return acc;
     },
-    {} as Record<string, typeof items>
+    {} as Record<string, AnyMetadata[]>
   );
 
   for (const [category, categoryItems] of Object.entries(grouped)) {

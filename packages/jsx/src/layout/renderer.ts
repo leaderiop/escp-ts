@@ -134,7 +134,7 @@ export interface RenderItem {
  */
 export type RenderItemData =
   | { type: 'text'; content: string; orientation: TextOrientation }
-  | { type: 'line'; char: string; length: number };
+  | { type: 'line'; char: string; length: number; direction: 'horizontal' | 'vertical' };
 
 // ==================== FLATTEN TREE ====================
 
@@ -263,16 +263,47 @@ function collectRenderItems(
 
     case 'line': {
       const lineNode = node as LineNode;
-      const char = lineNode.char ?? (lineNode.direction === 'horizontal' ? '-' : '|');
-      items.push({
-        type: 'line',
-        x: effectiveX,
-        y: effectiveY,
-        width: result.width,
-        height: result.height,
-        style: result.style,
-        data: { type: 'line', char, length: result.width },
-      });
+      const direction = lineNode.direction ?? 'horizontal';
+      const char = lineNode.char ?? (direction === 'horizontal' ? '-' : '|');
+
+      if (direction === 'vertical') {
+        // For vertical lines, create separate render items at each line position.
+        // This ensures proper sorting and prevents backwards vertical movement.
+        // Vertical lines span multiple Y positions, so each character must be
+        // a separate item to interleave correctly with other content.
+        const lineSpacing =
+          result.height > 0
+            ? Math.round(result.height / Math.max(1, Math.round(result.height / 60)))
+            : 60;
+        const numLines = Math.max(1, Math.round(result.height / lineSpacing));
+        let currentY = effectiveY;
+
+        for (let i = 0; i < numLines; i++) {
+          items.push({
+            type: 'line',
+            x: effectiveX,
+            y: currentY,
+            width: result.width,
+            height: lineSpacing,
+            style: result.style,
+            data: { type: 'line', char, length: result.width, direction: 'horizontal' },
+            // Note: We use 'horizontal' direction here because each character is
+            // rendered horizontally (single char at a fixed Y position)
+          });
+          currentY += lineSpacing;
+        }
+      } else {
+        // Horizontal lines are rendered as a single item (characters in a row)
+        items.push({
+          type: 'line',
+          x: effectiveX,
+          y: effectiveY,
+          width: result.width,
+          height: result.height,
+          style: result.style,
+          data: { type: 'line', char, length: result.width, direction },
+        });
+      }
       break;
     }
 
@@ -565,10 +596,26 @@ function renderVerticalText(ctx: RenderContext, item: RenderItem): void {
 
 /**
  * Render a line item
+ *
+ * Note: Vertical lines are expanded into individual items during flattenTree(),
+ * so all line items here are rendered horizontally (single row of characters).
  */
 function renderLineItem(ctx: RenderContext, item: RenderItem): void {
   if (item.data.type !== 'line') return;
 
+  const { char, length } = item.data;
+  renderHorizontalLine(ctx, item, char, length);
+}
+
+/**
+ * Render a horizontal line (characters repeated in a row)
+ */
+function renderHorizontalLine(
+  ctx: RenderContext,
+  item: RenderItem,
+  char: string,
+  length: number
+): void {
   // Position
   moveToY(ctx, item.y);
   moveToX(ctx, item.x);
@@ -580,20 +627,23 @@ function renderLineItem(ctx: RenderContext, item: RenderItem): void {
   // Use Math.round for balanced precision - prevents both gaps and significant overflow
   // For tight table layouts, this provides the best visual consistency
   const charWidth = Math.round(360 / item.style.cpi);
-  const numChars = Math.max(1, Math.round(item.data.length / charWidth));
+  const numChars = Math.max(1, Math.round(length / charWidth));
 
   // Generate repeated character
-  const lineStr = item.data.char.repeat(numChars);
+  const lineStr = char.repeat(numChars);
   const encoded = encodeText(lineStr, ctx.charset, ctx.charTable);
   emit(ctx, encoded);
 
   // Update X position - CRITICAL: use actual rendered width, not allocated width
   // This ensures the next item's position calculation is correct.
-  // Bug fix: Previously used item.width which could be larger than rendered chars,
-  // causing subsequent items to skip ESC $ positioning commands.
   const actualRenderedWidth = numChars * charWidth;
   ctx.currentX = item.x + actualRenderedWidth;
 }
+
+// Note: renderVerticalLine was removed - vertical lines are now expanded into
+// individual render items during flattenTree() to prevent backwards Y movement
+// during rendering. Each vertical line character is a separate item that gets
+// properly sorted and interleaved with other content at the same Y position.
 
 /**
  * Concatenate command arrays

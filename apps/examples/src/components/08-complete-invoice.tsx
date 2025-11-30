@@ -8,7 +8,20 @@
 import { LayoutEngine } from '@escp/jsx';
 import type { FunctionComponent } from '@escp/jsx';
 import { Stack, Flex, Layout, Spacer, Text, Line, Template, If, Switch, Case } from '@escp/jsx';
-import { Table, Card, Badge, List, Heading, Label, Caption, Divider, Panel } from '@escp/jsx';
+import {
+  Table,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+  List,
+  Heading,
+  Label,
+  Caption,
+  Divider,
+  Panel,
+} from '@escp/jsx';
 import { renderPreview, DEFAULT_PAPER, printSection } from '../_helpers';
 
 // Reusable Components
@@ -33,18 +46,22 @@ interface AddressBlockProps {
 
 const AddressBlock: FunctionComponent<AddressBlockProps> = ({ title, dataPath }) =>
   Card({
-    title,
-    children: Stack({
-      style: { gap: 3 },
-      children: [
-        Template({ template: `{{${dataPath}.name}}`, style: { bold: true } }),
-        Template({ template: `{{${dataPath}.address}}` }),
-        Template({
-          template: `{{${dataPath}.city}}, {{${dataPath}.state}} {{${dataPath}.zip}}`,
-        }),
-        Template({ template: `{{${dataPath}.country}}` }),
-      ],
-    }),
+    children: [
+      CardHeader({
+        children: CardTitle({ children: title }),
+      }),
+      CardContent({
+        style: { gap: 3 },
+        children: [
+          Template({ template: `{{${dataPath}.name}}`, style: { bold: true } }),
+          Template({ template: `{{${dataPath}.address}}` }),
+          Template({
+            template: `{{${dataPath}.city}}, {{${dataPath}.state}} {{${dataPath}.zip}}`,
+          }),
+          Template({ template: `{{${dataPath}.country}}` }),
+        ],
+      }),
+    ],
   });
 
 interface OrderStatusBadgeProps {

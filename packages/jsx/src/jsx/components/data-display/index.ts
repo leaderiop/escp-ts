@@ -4,7 +4,7 @@
  */
 
 export { Badge } from './Badge';
-export { Card } from './Card';
+export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './Card';
 export { List, ListItem } from './List';
 export { Table, TableRow, TableCell } from './Table';
 
@@ -12,6 +12,11 @@ export { Table, TableRow, TableCell } from './Table';
 export type {
   BadgeProps,
   CardProps,
+  CardHeaderProps,
+  CardTitleProps,
+  CardDescriptionProps,
+  CardContentProps,
+  CardFooterProps,
   ListProps,
   ListItemProps,
   TableProps,

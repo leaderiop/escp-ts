@@ -1,29 +1,20 @@
 /**
- * BoxedText Component
+ * BoxedText Component (border-box model)
  * Renders text with a border using CP437 box-drawing characters
  * Supports single, double, and ASCII border styles
+ *
+ * Uses the border-box layout model where:
+ * - Specified width/height includes the border
+ * - Border thickness reduces available content area
  */
 
 import type { LayoutNode } from '../../../layout/nodes';
 import type { NodeStyle } from '../../types';
-import { Stack } from '../layout/Stack';
-import { Flex } from '../layout/Flex';
+import type { BorderVariant, BorderConfig } from '../../../layout/borderBox';
+import { BorderedContainer } from '../layout/BorderedContainer';
 import { Text } from '../content/Text';
-import { Line } from '../content/Line';
 
 import { CP437_BOX } from '@escp/core';
-
-/**
- * Border character set for BoxedText
- */
-interface BoxedBorderChars {
-  topLeft: string;
-  topRight: string;
-  bottomLeft: string;
-  bottomRight: string;
-  horizontal: string;
-  vertical: string;
-}
 
 /**
  * BoxedText component props
@@ -41,8 +32,8 @@ export interface BoxedTextProps {
   style?: NodeStyle;
 }
 
-// CP437 single-line border characters
-const CP437_SINGLE: BoxedBorderChars = {
+// CP437 single-line border characters for custom chars override
+const CP437_SINGLE_CHARS = {
   topLeft: String.fromCharCode(CP437_BOX.SINGLE_TOP_LEFT),
   topRight: String.fromCharCode(CP437_BOX.SINGLE_TOP_RIGHT),
   bottomLeft: String.fromCharCode(CP437_BOX.SINGLE_BOTTOM_LEFT),
@@ -52,23 +43,13 @@ const CP437_SINGLE: BoxedBorderChars = {
 };
 
 // CP437 double-line border characters
-const CP437_DOUBLE: BoxedBorderChars = {
+const CP437_DOUBLE_CHARS = {
   topLeft: String.fromCharCode(CP437_BOX.DOUBLE_TOP_LEFT),
   topRight: String.fromCharCode(CP437_BOX.DOUBLE_TOP_RIGHT),
   bottomLeft: String.fromCharCode(CP437_BOX.DOUBLE_BOTTOM_LEFT),
   bottomRight: String.fromCharCode(CP437_BOX.DOUBLE_BOTTOM_RIGHT),
   horizontal: String.fromCharCode(CP437_BOX.DOUBLE_HORIZONTAL),
   vertical: String.fromCharCode(CP437_BOX.DOUBLE_VERTICAL),
-};
-
-// ASCII fallback border characters
-const ASCII_CHARS: BoxedBorderChars = {
-  topLeft: '+',
-  topRight: '+',
-  bottomLeft: '+',
-  bottomRight: '+',
-  horizontal: '-',
-  vertical: '|',
 };
 
 /**
@@ -96,54 +77,46 @@ const ASCII_CHARS: BoxedBorderChars = {
 export function BoxedText(props: BoxedTextProps): LayoutNode {
   const { children, padding = 1, borderStyle = 'single', useLineDrawing = true, style } = props;
 
-  // Select border characters based on style and useLineDrawing flag
-  let chars: BoxedBorderChars;
+  // Determine border variant and custom chars based on props
+  let variant: BorderVariant;
+  let customChars: typeof CP437_SINGLE_CHARS | undefined;
+
   if (!useLineDrawing || borderStyle === 'ascii') {
-    chars = ASCII_CHARS;
+    variant = 'single'; // ASCII preset
+    customChars = undefined;
   } else if (borderStyle === 'double') {
-    chars = CP437_DOUBLE;
+    // CP437 double - use custom chars since BorderedContainer uses UNICODE_BOX
+    variant = 'cp437-double';
+    customChars = CP437_DOUBLE_CHARS;
   } else {
-    chars = CP437_SINGLE;
+    // CP437 single - use custom chars since BorderedContainer uses UNICODE_BOX
+    variant = 'cp437-single';
+    customChars = CP437_SINGLE_CHARS;
   }
+
+  // Build border config - only include chars if defined
+  const borderConfig: BorderConfig = {
+    variant,
+    ...(customChars !== undefined && { chars: customChars }),
+  };
 
   // Convert children to string
   const contentText = children !== undefined ? String(children) : '';
 
-  // Build padding spaces
+  // Build padding spaces (horizontal character padding)
   const paddingSpaces = ' '.repeat(padding);
 
-  return Stack({
-    ...(style && { style }),
-    children: [
-      // Top border line: corner + horizontal line + corner
-      Flex({
-        children: [
-          Text({ children: chars.topLeft }),
-          Line({ char: chars.horizontal, length: 'fill' }),
-          Text({ children: chars.topRight }),
-        ],
-      }),
-      // Content row: vertical border + content (with padding) + vertical border
-      // Use flexGrow/flexShrink/flexBasis to match Line behavior in border rows
-      Flex({
-        children: [
-          Text({ children: chars.vertical }),
-          Stack({
-            style: { flexGrow: 1, flexShrink: 1, flexBasis: 0 },
-            children: [Text({ children: paddingSpaces + contentText + paddingSpaces })],
-          }),
-          Text({ children: chars.vertical }),
-        ],
-      }),
-      // Bottom border line: corner + horizontal line + corner
-      Flex({
-        children: [
-          Text({ children: chars.bottomLeft }),
-          Line({ char: chars.horizontal, length: 'fill' }),
-          Text({ children: chars.bottomRight }),
-        ],
-      }),
-    ],
+  // Extract width/height for border-box handling
+  const { width, height, ...restStyle } = style || {};
+
+  // Use BorderedContainer with text content
+  // Pass width/height only if defined (for exactOptionalPropertyTypes)
+  return BorderedContainer({
+    ...(width !== undefined && { width }),
+    ...(height !== undefined && { height }),
+    border: borderConfig,
+    style: restStyle,
+    children: Text({ children: paddingSpaces + contentText + paddingSpaces }),
   });
 }
 

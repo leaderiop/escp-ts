@@ -7,7 +7,17 @@
 
 import { LayoutEngine } from '@escp/jsx';
 import { Stack, Flex, Layout, Text, Line, Spacer } from '@escp/jsx';
-import { Table, TableRow, TableCell, List, Card, Badge } from '@escp/jsx';
+import {
+  Table,
+  TableRow,
+  TableCell,
+  List,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Badge,
+} from '@escp/jsx';
 import { renderPreview, DEFAULT_PAPER, printSection } from '../_helpers';
 
 async function main() {
@@ -95,26 +105,34 @@ async function main() {
                 style: { gap: 10, padding: { top: 5 } },
                 children: [
                   Card({
-                    title: 'Customer Info',
-                    children: Stack({
-                      style: { gap: 2 },
-                      children: [
-                        Text({ children: 'John Doe' }),
-                        Text({ children: 'john@example.com' }),
-                        Text({ children: '+1 (555) 123-4567' }),
-                      ],
-                    }),
+                    children: [
+                      CardHeader({
+                        children: CardTitle({ children: 'Customer Info' }),
+                      }),
+                      CardContent({
+                        style: { gap: 2 },
+                        children: [
+                          Text({ children: 'John Doe' }),
+                          Text({ children: 'john@example.com' }),
+                          Text({ children: '+1 (555) 123-4567' }),
+                        ],
+                      }),
+                    ],
                   }),
                   Card({
-                    title: 'Address',
-                    border: '=',
-                    children: Stack({
-                      style: { gap: 2 },
-                      children: [
-                        Text({ children: '123 Main Street' }),
-                        Text({ children: 'New York, NY 10001' }),
-                      ],
-                    }),
+                    border: 'double',
+                    children: [
+                      CardHeader({
+                        children: CardTitle({ children: 'Address' }),
+                      }),
+                      CardContent({
+                        style: { gap: 2 },
+                        children: [
+                          Text({ children: '123 Main Street' }),
+                          Text({ children: 'New York, NY 10001' }),
+                        ],
+                      }),
+                    ],
                   }),
                 ],
               }),

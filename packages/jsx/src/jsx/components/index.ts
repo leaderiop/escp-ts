@@ -3,6 +3,9 @@
  * All components organized by category
  */
 
+// Base utilities
+export * from './base';
+
 // Layout components
 export * from './layout';
 

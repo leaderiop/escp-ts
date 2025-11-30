@@ -76,6 +76,27 @@ export interface NodeStyle {
   printQuality?: PrintQualityValue | undefined;
 }
 
+// ==================== BASE PROPS ====================
+
+/**
+ * Base props interface for components that support the box model
+ * (margin → border → padding → content)
+ *
+ * Components extending this interface gain consistent layout capabilities
+ */
+export interface BaseProps {
+  /** Margin outside the component */
+  margin?: MarginSpec;
+  /** Border around the component */
+  border?: boolean | 'single' | 'double' | 'ascii' | false;
+  /** Padding inside the border */
+  padding?: PaddingSpec;
+  /** Additional style properties */
+  style?: NodeStyle;
+  /** Child content */
+  children?: JSXChildren;
+}
+
 // ==================== COMPONENT PROPS ====================
 
 /**
@@ -291,13 +312,83 @@ export interface BadgeProps {
 
 /**
  * Card component props
- * Grouped content container with optional border
+ * Root container with composition API (shadcn/ui style)
  */
 export interface CardProps {
-  title?: string;
-  border?: string;
+  /**
+   * Border style for the card
+   * - true: Auto-detect (CP437 'single' if supported, 'ascii' fallback)
+   * - 'single': Single-line CP437 box drawing
+   * - 'double': Double-line CP437 box drawing
+   * - 'ascii': ASCII characters (+, -, |)
+   * - false: No border
+   * @default 'single'
+   */
+  border?: boolean | 'single' | 'double' | 'ascii';
+  /**
+   * Padding inside the card border
+   * @default { top: 5, right: 10, bottom: 5, left: 10 }
+   */
+  padding?: PaddingSpec;
   style?: NodeStyle;
   children?: JSXChildren;
+}
+
+/**
+ * CardHeader component props
+ * Top section containing title and description
+ */
+export interface CardHeaderProps extends BaseProps {
+  /** Horizontal alignment of header content */
+  align?: HAlign;
+  /** Gap between title and description @default 3 */
+  gap?: number;
+}
+
+/**
+ * CardTitle component props
+ * Main heading of the card (renders bold)
+ */
+export interface CardTitleProps {
+  /** Heading level for styling (1-2 use doubleWidth) @default 3 */
+  level?: 1 | 2 | 3 | 4;
+  align?: HAlign;
+  style?: NodeStyle;
+  children?: string | number;
+}
+
+/**
+ * CardDescription component props
+ * Secondary text below title (renders italic)
+ */
+export interface CardDescriptionProps {
+  align?: HAlign;
+  style?: NodeStyle;
+  children?: string | number;
+}
+
+/**
+ * CardContent component props
+ * Main body content area
+ */
+export interface CardContentProps extends BaseProps {
+  /** Gap between content children @default 5 */
+  gap?: number;
+}
+
+/**
+ * CardFooter component props
+ * Bottom section for actions or summary
+ */
+export interface CardFooterProps extends BaseProps {
+  /** Layout direction @default 'row' */
+  direction?: 'row' | 'column';
+  /** How to distribute space @default 'end' */
+  justify?: JustifyContent;
+  /** Vertical alignment @default 'center' */
+  align?: VAlign;
+  /** Gap between items @default 10 */
+  gap?: number;
 }
 
 // ==================== TYPOGRAPHY COMPONENT PROPS ====================
