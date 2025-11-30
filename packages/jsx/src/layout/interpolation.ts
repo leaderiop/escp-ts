@@ -107,6 +107,12 @@ const TEMPLATE_REGEX = /\{\{\s*(.+?)\s*\}\}/g;
 
 /**
  * Parse a filter expression like "uppercase" or "truncate:20" or "currency:'$':2"
+ *
+ * Supports:
+ * - Quoted strings with colons inside: format:"HH:mm:ss"
+ * - Escaped quotes: default:"Say \"Hello\""
+ * - Escaped backslashes: path:"C:\\Users"
+ * - Empty strings: default:""
  */
 function parseFilter(filterExpr: string): FilterCall {
   const trimmed = filterExpr.trim();
@@ -119,16 +125,31 @@ function parseFilter(filterExpr: string): FilterCall {
   const name = trimmed.slice(0, colonIndex).trim();
   const argsStr = trimmed.slice(colonIndex + 1);
 
-  // Parse arguments (handles "arg1":"arg2" or 'arg1':'arg2' or arg1:arg2)
+  // Parse arguments with escape sequence support
   const args: unknown[] = [];
   let current = '';
   let inQuote: string | null = null;
+  let escaped = false;
 
   for (let i = 0; i < argsStr.length; i++) {
     const char = argsStr.charAt(i);
 
+    // Handle escape sequences inside quotes
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+
+    // Backslash starts an escape sequence when inside quotes
+    if (char === '\\' && inQuote) {
+      escaped = true;
+      continue;
+    }
+
     if (inQuote) {
       if (char === inQuote) {
+        // End of quoted string - push even if empty
         args.push(current);
         current = '';
         inQuote = null;
@@ -401,11 +422,23 @@ export const defaultFilters = createFilterRegistry();
 // ==================== INTERPOLATION ====================
 
 /**
+ * Options for template interpolation
+ */
+export interface InterpolateOptions {
+  /**
+   * Whether to warn about unknown filter names.
+   * @default true
+   */
+  warnOnUnknownFilter?: boolean;
+}
+
+/**
  * Interpolate a template string with data
  *
  * @param template - Template string with {{variable}} placeholders
  * @param data - Data object for variable resolution
  * @param filters - Filter registry (defaults to built-in filters)
+ * @param options - Interpolation options
  * @returns Interpolated string with all variables resolved
  *
  * @example
@@ -424,8 +457,10 @@ export const defaultFilters = createFilterRegistry();
 export function interpolate(
   template: string,
   data: Record<string, unknown>,
-  filters: FilterRegistry = defaultFilters
+  filters: FilterRegistry = defaultFilters,
+  options: InterpolateOptions = {}
 ): string {
+  const { warnOnUnknownFilter = true } = options;
   const expressions = parseTemplate(template);
 
   if (expressions.length === 0) {
@@ -443,6 +478,11 @@ export function interpolate(
       const filterFn = filters.get(filter.name);
       if (filterFn) {
         value = filterFn(value, ...filter.args);
+      } else if (warnOnUnknownFilter) {
+        console.warn(
+          `[escp-jsx] Unknown filter "${filter.name}" in template "${expr.match}". ` +
+            `Available filters: ${filters.list().join(', ')}`
+        );
       }
     }
 

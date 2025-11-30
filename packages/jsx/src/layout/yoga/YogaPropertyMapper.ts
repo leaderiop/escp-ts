@@ -103,22 +103,33 @@ export function applyPadding(
 /**
  * Apply margin to a Yoga node
  *
+ * Supports individual auto margins for flexible alignment:
+ * - `margin: { left: 'auto' }` - pushes element to the right
+ * - `margin: { right: 'auto' }` - pushes element to the left
+ * - `margin: { left: 'auto', right: 'auto' }` or `margin: 'auto'` - centers element
+ *
  * @param yogaNode - The Yoga node to configure
  * @param margin - Margin specification
- * @returns Resolved margin for tracking (with autoHorizontal flag)
+ * @returns Resolved margin for tracking (with auto flags)
  */
 export function applyMargin(yogaNode: YogaNode, margin: MarginSpec | undefined): ResolvedMargin {
   const resolved = resolveMargin(margin);
 
-  // Handle auto horizontal margins (centering)
-  if (resolved.autoHorizontal) {
+  // Handle left margin - either auto or fixed
+  if (resolved.autoLeft) {
     yogaNode.setMarginAuto(Edge.Left);
-    yogaNode.setMarginAuto(Edge.Right);
-  } else {
-    if (resolved.left > 0) yogaNode.setMargin(Edge.Left, resolved.left);
-    if (resolved.right > 0) yogaNode.setMargin(Edge.Right, resolved.right);
+  } else if (resolved.left > 0) {
+    yogaNode.setMargin(Edge.Left, resolved.left);
   }
 
+  // Handle right margin - either auto or fixed
+  if (resolved.autoRight) {
+    yogaNode.setMarginAuto(Edge.Right);
+  } else if (resolved.right > 0) {
+    yogaNode.setMargin(Edge.Right, resolved.right);
+  }
+
+  // Apply vertical margins (no auto support for vertical)
   if (resolved.top > 0) yogaNode.setMargin(Edge.Top, resolved.top);
   if (resolved.bottom > 0) yogaNode.setMargin(Edge.Bottom, resolved.bottom);
 

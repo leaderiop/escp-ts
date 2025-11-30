@@ -337,6 +337,8 @@ interface RenderContext {
   lineSpacing: number;
   /** Output command buffer */
   output: Uint8Array[];
+  /** Strict mode - throw errors instead of warnings */
+  strictMode: boolean;
 }
 
 /**
@@ -361,6 +363,12 @@ function moveToX(ctx: RenderContext, x: number): void {
 
 /**
  * Move to Y position (advance vertically)
+ *
+ * @remarks
+ * **LIMITATION**: Only moves DOWN. If `y < ctx.currentY`, behavior depends on strictMode:
+ * - strictMode=true: throws an error
+ * - strictMode=false: logs a warning and skips the movement
+ * ESC/P printers cannot reverse paper direction.
  */
 function moveToY(ctx: RenderContext, y: number): void {
   if (y > ctx.currentY) {
@@ -377,8 +385,19 @@ function moveToY(ctx: RenderContext, y: number): void {
       units180 -= advance;
     }
     ctx.currentY = y;
+  } else if (y < ctx.currentY) {
+    // Backwards movement requested - ESC/P hardware limitation
+    const message =
+      `[escp-jsx] Backwards vertical movement requested: Y=${y}, current Y=${ctx.currentY}. ` +
+      `ESC/P printers cannot move paper backwards. Ensure items are sorted with sortRenderItems().`;
+
+    if (ctx.strictMode) {
+      throw new Error(message);
+    } else {
+      console.warn(message + ' Content at this position will be skipped.');
+    }
   }
-  // Note: We don't support moving backwards (up the page)
+  // y === ctx.currentY: No movement needed
 }
 
 /**
@@ -433,6 +452,14 @@ function applyStyle(ctx: RenderContext, style: ResolvedStyle): void {
         break;
       case 15:
         emit(ctx, CommandBuilder.selectMicron());
+        break;
+      default:
+        // Invalid CPI value - warn and fall back to pica (10 CPI)
+        console.warn(
+          `[escp-jsx] Invalid CPI value: ${style.cpi}. Valid values are 10, 12, 15, 17, 20. ` +
+            `Falling back to 10 CPI (pica).`
+        );
+        emit(ctx, CommandBuilder.selectPica());
         break;
     }
   }
@@ -550,10 +577,10 @@ function renderLineItem(ctx: RenderContext, item: RenderItem): void {
   applyStyle(ctx, item.style);
 
   // Calculate how many characters to print
-  // Use Math.ceil to ensure the line reaches the next element (corner)
-  // A slight overflow is visually better than a gap between line and corner
+  // Use Math.round for balanced precision - prevents both gaps and significant overflow
+  // For tight table layouts, this provides the best visual consistency
   const charWidth = Math.round(360 / item.style.cpi);
-  const numChars = Math.max(1, Math.ceil(item.data.length / charWidth));
+  const numChars = Math.max(1, Math.round(item.data.length / charWidth));
 
   // Generate repeated character
   const lineStr = item.data.char.repeat(numChars);
@@ -600,6 +627,14 @@ export interface RenderOptions {
   lineSpacing?: number;
   /** Initial style */
   initialStyle?: ResolvedStyle;
+  /**
+   * Strict mode throws errors instead of warnings for printer limitations.
+   * When enabled:
+   * - Backwards Y movement throws an error instead of being skipped
+   * - Helps catch layout issues during development
+   * @default false
+   */
+  strictMode?: boolean;
 }
 
 /**
@@ -666,6 +701,7 @@ export function renderPageItems(
     charTable: options.charTable ?? (CHAR_TABLE.PC437_USA as CharacterTable),
     lineSpacing: options.lineSpacing ?? 60,
     output: [],
+    strictMode: options.strictMode ?? false,
   };
 
   // Render each item

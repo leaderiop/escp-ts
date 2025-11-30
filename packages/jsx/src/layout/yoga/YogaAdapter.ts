@@ -195,18 +195,18 @@ export class YogaAdapter {
     // Build Yoga tree with config for proper node configuration
     const mapping = buildYogaTree(Yoga, node, ctx, this.config ?? undefined);
 
-    // Calculate layout with Yoga
-    mapping.yogaNode.calculateLayout(options.availableWidth, options.availableHeight);
+    try {
+      // Calculate layout with Yoga
+      mapping.yogaNode.calculateLayout(options.availableWidth, options.availableHeight);
 
-    // Extract results
-    const startX = options.startX ?? 0;
-    const startY = options.startY ?? 0;
-    const result = extractLayoutResult(mapping, startX, startY);
-
-    // Free Yoga nodes to prevent memory leaks
-    freeYogaTree(mapping);
-
-    return result;
+      // Extract results
+      const startX = options.startX ?? 0;
+      const startY = options.startY ?? 0;
+      return extractLayoutResult(mapping, startX, startY);
+    } finally {
+      // Always free Yoga nodes to prevent memory leaks, even on error
+      freeYogaTree(mapping);
+    }
   }
 
   /**
@@ -263,7 +263,8 @@ export async function createYogaAdapter(options?: YogaAdapterOptions): Promise<Y
  * One-shot layout calculation
  *
  * Convenience function for single layout calculations without
- * maintaining an adapter instance.
+ * manually maintaining an adapter instance. Uses the default adapter
+ * singleton for performance (avoids loading WASM on each call).
  *
  * @param node - The root layout node
  * @param options - Layout options
@@ -281,7 +282,9 @@ export async function calculateYogaLayout(
   node: LayoutNode,
   options: YogaLayoutOptions
 ): Promise<LayoutResult> {
-  const adapter = await createYogaAdapter();
+  // Use the default adapter singleton for performance
+  // This avoids loading WASM on every call
+  const adapter = await initDefaultAdapter();
   return adapter.calculateLayout(node, options);
 }
 
@@ -294,16 +297,47 @@ export async function calculateYogaLayout(
 let defaultAdapter: YogaAdapter | null = null;
 
 /**
+ * Promise for ongoing initialization (prevents race condition)
+ */
+let initializationPromise: Promise<YogaAdapter> | null = null;
+
+/**
  * Initialize the default adapter singleton
+ *
+ * This function is safe to call concurrently - multiple calls will
+ * share the same initialization promise to prevent race conditions.
  *
  * @returns Promise<YogaAdapter> the initialized default adapter
  */
 export async function initDefaultAdapter(): Promise<YogaAdapter> {
-  if (!defaultAdapter) {
-    defaultAdapter = new YogaAdapter();
-    await defaultAdapter.init();
+  // Return existing adapter if already initialized
+  if (defaultAdapter && defaultAdapter.isInitialized()) {
+    return defaultAdapter;
   }
-  return defaultAdapter;
+
+  // If initialization is in progress, wait for it
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+
+  // Start initialization and store the promise to prevent race conditions
+  initializationPromise = (async () => {
+    try {
+      defaultAdapter = new YogaAdapter();
+      await defaultAdapter.init();
+      return defaultAdapter;
+    } catch (error) {
+      // Clear state on error so retry is possible
+      defaultAdapter = null;
+      initializationPromise = null;
+      throw error;
+    }
+  })();
+
+  const adapter = await initializationPromise;
+  // Clear the promise after successful initialization (adapter is now ready)
+  initializationPromise = null;
+  return adapter;
 }
 
 /**
@@ -322,10 +356,12 @@ export function getDefaultAdapter(): YogaAdapter {
  * Reset the default adapter (for testing)
  *
  * Disposes the current default adapter and clears the reference.
+ * Also clears any pending initialization promise.
  */
 export function resetDefaultAdapter(): void {
   if (defaultAdapter) {
     defaultAdapter.dispose();
     defaultAdapter = null;
   }
+  initializationPromise = null;
 }

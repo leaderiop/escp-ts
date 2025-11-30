@@ -170,6 +170,7 @@ export {
   type FilterCall,
   type FilterFunction,
   type FilterRegistry,
+  type InterpolateOptions,
 } from './layout/interpolation';
 
 // Conditional Evaluation

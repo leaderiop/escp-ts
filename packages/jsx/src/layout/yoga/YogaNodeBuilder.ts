@@ -135,10 +135,15 @@ export function buildYogaTree(
       buildLineNode(yogaNode, node, mapping, childCtx);
       break;
 
-    default:
+    default: {
       // Template, conditional, switch, each nodes should be resolved before layout
-      // If we encounter them here, they're errors in the pipeline
-      console.warn(`Unexpected node type in Yoga builder: ${(node as LayoutNode).type}`);
+      // If we encounter them here, it's a pipeline error - fail fast instead of silent corruption
+      const nodeType = (node as LayoutNode).type;
+      throw new Error(
+        `Unresolved dynamic node type "${nodeType}" in Yoga builder. ` +
+          `Dynamic nodes (template, conditional, switch, each) must be resolved before layout.`
+      );
+    }
   }
 
   return mapping;
