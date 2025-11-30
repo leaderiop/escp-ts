@@ -58,7 +58,37 @@ export function baseLayout(
     const borderConfig: BorderConfig = { variant };
     const { width, height, ...restStyle } = style || {};
 
-    const bordered = BorderedContainer({
+    // When margin exists: need a 3-layer structure
+    // 1. Outer Stack: establishes the total size constraint (width/height)
+    // 2. Margin Stack: has margin applied, fills parent with flexGrow: 1
+    // 3. BorderedContainer: fills remaining space after margin
+    if (margin) {
+      const bordered = BorderedContainer({
+        // NO width/height - let it fill the margin layout
+        border: borderConfig,
+        padding,
+        style: { ...restStyle, flexGrow: 1 },
+        children,
+      });
+
+      // Margin container: applies margin, fills parent
+      const marginContainer = Stack({
+        style: { margin, flexGrow: 1 },
+        children: [bordered],
+      });
+
+      // Outer Stack: establishes total size constraint
+      return Stack({
+        style: {
+          ...(width !== undefined && { width }),
+          ...(height !== undefined && { height }),
+        },
+        children: [marginContainer],
+      });
+    }
+
+    // No margin - BorderedContainer gets full dimensions directly
+    return BorderedContainer({
       ...(width !== undefined && { width }),
       ...(height !== undefined && { height }),
       border: borderConfig,
@@ -66,12 +96,6 @@ export function baseLayout(
       style: restStyle,
       children,
     });
-
-    // Apply margin by wrapping in Stack
-    if (margin) {
-      return Stack({ style: { margin }, children: [bordered] });
-    }
-    return bordered;
   }
 
   // No border - just margin/padding via Stack
