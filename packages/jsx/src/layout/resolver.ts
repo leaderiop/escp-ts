@@ -307,8 +307,12 @@ function resolveTextNode(node: TextNode, ctx: DataContext): TextNode {
   let content: string;
   try {
     content = node.contentResolver(ctx);
-  } catch {
-    // If resolver throws, use the static content as fallback
+  } catch (error) {
+    // Log the error but fall back to static content to prevent layout from crashing
+    console.warn(
+      `[escp-jsx] contentResolver threw an error, falling back to static content: ` +
+        `${error instanceof Error ? error.message : String(error)}`
+    );
     content = node.content;
   }
 

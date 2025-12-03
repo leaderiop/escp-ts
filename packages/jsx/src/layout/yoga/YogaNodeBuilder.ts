@@ -6,7 +6,7 @@
  * to Yoga's flexbox engine.
  */
 
-import { FlexDirection, Gutter } from 'yoga-layout/load';
+import { Align, FlexDirection, Gutter } from 'yoga-layout/load';
 import type { Node as YogaNode, Yoga, Config } from 'yoga-layout/load';
 import type {
   LayoutNode,
@@ -62,7 +62,9 @@ export function buildYogaTree(
     'doubleWidth' in node ||
     'doubleHeight' in node ||
     'condensed' in node ||
-    'cpi' in node;
+    'cpi' in node ||
+    'typeface' in node ||
+    'printQuality' in node;
   const nodeStyle = hasStyleProps ? node : {};
   const resolvedStyle = resolveStyle(nodeStyle, ctx.style);
 
@@ -99,7 +101,12 @@ export function buildYogaTree(
   // This ensures table columns with explicit widths maintain their size.
   // Note: This is only applied if flexShrink wasn't explicitly set above.
   const nodeWidth = (node as LayoutNodeBase).width;
-  if (typeof nodeWidth === 'number' && layoutNode.flexShrink === undefined) {
+  const hasExplicitWidth =
+    typeof nodeWidth === 'number' ||
+    nodeWidth === 'fill' ||
+    (typeof nodeWidth === 'string' && nodeWidth.endsWith('%'));
+
+  if (hasExplicitWidth && layoutNode.flexShrink === undefined) {
     yogaNode.setFlexShrink(0);
   }
 
@@ -135,10 +142,15 @@ export function buildYogaTree(
       buildLineNode(yogaNode, node, mapping, childCtx);
       break;
 
-    default:
+    default: {
       // Template, conditional, switch, each nodes should be resolved before layout
-      // If we encounter them here, they're errors in the pipeline
-      console.warn(`Unexpected node type in Yoga builder: ${(node as LayoutNode).type}`);
+      // If we encounter them here, it's a pipeline error - fail fast instead of silent corruption
+      const nodeType = (node as LayoutNode).type;
+      throw new Error(
+        `Unresolved dynamic node type "${nodeType}" in Yoga builder. ` +
+          `Dynamic nodes (template, conditional, switch, each) must be resolved before layout.`
+      );
+    }
   }
 
   return mapping;
@@ -187,18 +199,22 @@ function buildStackNode(
   // Stack is NOT a flex row - text should never shrink in a Stack.
   // Stack items flow naturally with gap and can overflow if needed.
   // This is different from Flex which uses flexbox distribution semantics.
-  const hasExplicitWidth =
-    typeof node.width === 'number' ||
-    node.width === 'fill' ||
-    (typeof node.width === 'string' && node.width.endsWith('%'));
+  //
+  // Width semantics for clipping:
+  // - 'fill': expand to available space, but DON'T clip (used by Border to fill space)
+  // - numeric (500): constrain to fixed width, CLIP content if overflow
+  // - percentage ('50%'): constrain to percentage of parent, CLIP content if overflow
+  const hasClippingWidth =
+    typeof node.width === 'number' || (typeof node.width === 'string' && node.width.endsWith('%'));
   let childCtx: YogaLayoutContext;
 
-  if (hasExplicitWidth) {
-    // Stack with explicit width (including percentage) provides a fixed boundary
+  if (hasClippingWidth) {
+    // Stack with constraining width (numeric/percentage) provides a fixed boundary
     // Text inside should be clipped to fit within the container
     childCtx = { ...ctx, inFlexRow: false, shouldClipText: true };
   } else {
-    // Stack without explicit width - INHERIT parent's shouldClipText
+    // Stack without constraining width (including 'fill') - INHERIT parent's shouldClipText
+    // 'fill' expands to available space but doesn't impose new clipping constraints
     // This allows nested components (like Section) to correctly propagate
     // clipping behavior from their parent with explicit width
     childCtx = { ...ctx, inFlexRow: false, shouldClipText: ctx.shouldClipText ?? false };
@@ -244,17 +260,20 @@ function buildFlexNode(
 
   // Build children recursively
   // Flex row: text should NOT shrink (Spacers handle flexible distribution).
-  // Text clipping depends on whether Flex has explicit width OR inherits from parent.
-  const hasExplicitWidth =
-    typeof node.width === 'number' ||
-    node.width === 'fill' ||
-    (typeof node.width === 'string' && node.width.endsWith('%'));
+  // Text clipping depends on whether Flex has constraining width OR inherits from parent.
+  //
+  // Width semantics for clipping (same as Stack):
+  // - 'fill': expand to available space, but DON'T clip (structural, not constraining)
+  // - numeric (500): constrain to fixed width, CLIP content if overflow
+  // - percentage ('50%'): constrain to percentage of parent, CLIP content if overflow
+  const hasClippingWidth =
+    typeof node.width === 'number' || (typeof node.width === 'string' && node.width.endsWith('%'));
   const flexRowCtx: YogaLayoutContext = {
     ...ctx,
     inFlexRow: true,
-    // In Flex with explicit width (including percentage), text should be clipped to container
-    // In Flex without explicit width, INHERIT parent's shouldClipText
-    shouldClipText: hasExplicitWidth || (ctx.shouldClipText ?? false),
+    // In Flex with constraining width (numeric/percentage), text should be clipped to container
+    // In Flex without constraining width (including 'fill'), INHERIT parent's shouldClipText
+    shouldClipText: hasClippingWidth || (ctx.shouldClipText ?? false),
   };
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
@@ -300,6 +319,7 @@ function buildTextNode(
     // NOTE: We do NOT set shouldClipText here - explicit width is for layout only
   }
 
+  // Pass through shouldClipText from context to mapping
   if (ctx.shouldClipText) {
     mapping.shouldClipText = true; // Parent has explicit width, clip to container
   } else {
@@ -344,8 +364,9 @@ function buildLineNode(
     yogaNode.setFlexShrink(0); // Don't shrink height
 
     if (length === 'fill') {
-      // Use flexGrow to fill available width in flex containers
-      // Only set default flexGrow:1 if style didn't specify a value
+      // Use flexGrow to fill available width in flex containers.
+      // This works when Line is directly in a Flex row (main axis is horizontal).
+      // Only set default flexGrow:1 if style didn't specify a value.
       // This allows Line to participate in proportional distribution (e.g., for table column widths)
       if (!hasExplicitFlexGrow) {
         yogaNode.setFlexGrow(1);
@@ -356,15 +377,17 @@ function buildLineNode(
     // Note: No measure function needed - we set explicit dimensions
   } else {
     // Vertical line: fixed width, fill height
-    yogaNode.setWidth(ctx.lineSpacing);
+    // Use character width based on CPI (default 10 CPI = 36 dots)
+    // NOT lineSpacing which is meant for vertical/height dimensions
+    const charWidth = Math.round(360 / (ctx.style?.cpi ?? 10));
+    yogaNode.setWidth(charWidth);
     yogaNode.setFlexShrink(0); // Don't shrink width
 
     if (length === 'fill') {
-      // Use flexGrow for vertical fill
-      // Only set default flexGrow:1 if style didn't specify a value
-      if (!hasExplicitFlexGrow) {
-        yogaNode.setFlexGrow(1);
-      }
+      // For vertical lines with fill, use alignSelf: Stretch to fill parent height.
+      // In a Flex row, flexGrow affects width (main axis), not height (cross axis).
+      // alignSelf: Stretch makes the item stretch along the cross axis (height in row).
+      yogaNode.setAlignSelf(Align.Stretch);
     } else if (typeof length === 'number') {
       yogaNode.setHeight(length);
     }

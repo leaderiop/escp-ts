@@ -109,14 +109,18 @@ export type MarginSpec =
 
 /**
  * Resolved margin with all four sides
- * Auto margins are stored as 0 with the autoHorizontal flag set
+ * Auto margins are tracked with individual flags for flexibility
  */
 export interface ResolvedMargin {
   top: number;
   right: number;
   bottom: number;
   left: number;
-  /** True if horizontal margins should auto-center the element */
+  /** True if left margin should be auto (pushes element right) */
+  autoLeft?: boolean;
+  /** True if right margin should be auto (pushes element left) */
+  autoRight?: boolean;
+  /** True if both horizontal margins are auto (centers element) - convenience flag */
   autoHorizontal?: boolean;
 }
 
@@ -672,7 +676,7 @@ export function resolvePadding(padding?: PaddingSpec): ResolvedPadding {
 
 /**
  * Resolve margin specification to all four sides
- * Auto margins are resolved to 0 with autoHorizontal flag set
+ * Auto margins are tracked with individual flags for single-side and centering support
  */
 export function resolveMargin(margin?: MarginSpec): ResolvedMargin {
   if (margin === undefined) {
@@ -680,12 +684,20 @@ export function resolveMargin(margin?: MarginSpec): ResolvedMargin {
   }
   if (margin === 'auto') {
     // 'auto' on top-level means horizontal centering (left and right auto)
-    return { top: 0, right: 0, bottom: 0, left: 0, autoHorizontal: true };
+    return {
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      autoLeft: true,
+      autoRight: true,
+      autoHorizontal: true,
+    };
   }
   if (typeof margin === 'number') {
     return { top: margin, right: margin, bottom: margin, left: margin };
   }
-  // Check for auto horizontal centering
+  // Check for auto margins individually
   const leftAuto = margin.left === 'auto';
   const rightAuto = margin.right === 'auto';
   const autoHorizontal = leftAuto && rightAuto;
@@ -695,6 +707,9 @@ export function resolveMargin(margin?: MarginSpec): ResolvedMargin {
     right: typeof margin.right === 'number' ? margin.right : 0,
     bottom: margin.bottom ?? 0,
     left: typeof margin.left === 'number' ? margin.left : 0,
+    // Track individual auto margins for single-side support
+    ...(leftAuto && { autoLeft: true }),
+    ...(rightAuto && { autoRight: true }),
     ...(autoHorizontal && { autoHorizontal: true }),
   };
 }

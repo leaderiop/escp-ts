@@ -5,19 +5,10 @@
 import type { LabelProps, NodeStyle } from '../../types';
 import type { LayoutNode } from '../../../layout/nodes';
 import { Flex } from '../layout/Flex';
-import { Stack } from '../layout/Stack';
 import { Text } from '../content/Text';
 
 export function Label(props: LabelProps): LayoutNode {
-  const {
-    label,
-    value,
-    labelWidth = 250, // Default width: ~7 characters at 10 CPI (36 dots/char)
-    colon = true,
-    typeface,
-    style,
-    children,
-  } = props;
+  const { label, value, colon = true, typeface, style, children } = props;
 
   const labelText = colon ? `${label}:` : label;
 
@@ -34,17 +25,10 @@ export function Label(props: LabelProps): LayoutNode {
       ? { ...style, ...(typeface !== undefined && { typeface }) }
       : undefined;
 
-  // Wrap label in a Stack with explicit width to create a fixed-width column
-  // This prevents the label from being clipped due to flex row context
-  // and ensures proper spacing between label and value
+  // Simple implementation: just render label and value as text in a Flex
+  // DEBUG: Using simplest possible layout to isolate truncation issue
   return Flex({
-    style: { gap: 18, ...mergedStyle }, // 18 dots = ~0.5 char at 10 CPI for spacing after colon
-    children: [
-      Stack({
-        style: { width: labelWidth },
-        children: Text({ children: labelText }),
-      }),
-      valueContent as LayoutNode,
-    ],
+    style: { gap: 18, ...mergedStyle },
+    children: [Text({ children: labelText }), valueContent as LayoutNode],
   });
 }

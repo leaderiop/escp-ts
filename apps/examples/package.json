@@ -6,7 +6,16 @@
   "type": "module",
   "scripts": {
     "build": "echo 'Examples do not need building'",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "example": "tsx",
+    "example:basic": "tsx src/01-fundamentals/01-basic-printing.ts",
+    "example:layout": "tsx src/01-fundamentals/02-layout-system/02-layout-system.tsx",
+    "example:graphics": "tsx src/01-fundamentals/03-graphics.ts",
+    "example:barcodes": "tsx src/01-fundamentals/04-barcodes.ts",
+    "example:invoice": "tsx src/03-advanced/31-complete-invoice/31-complete-invoice.tsx",
+    "examples:all": "tsx src/scripts/run-all.ts",
+    "examples:list": "tsx src/scripts/list.ts",
+    "qa:all": "tsx src/scripts/run-qa.ts"
   },
   "dependencies": {
     "@escp/core": "workspace:*",

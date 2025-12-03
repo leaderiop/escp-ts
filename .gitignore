@@ -4,8 +4,9 @@ node_modules/
 # Build output
 dist/
 
-# Output files (only at root level, not in src/)
+# Output files
 /output/
+**/output/
 
 # OS files
 .DS_Store

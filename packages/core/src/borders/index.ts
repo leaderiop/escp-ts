@@ -29,6 +29,7 @@
 // Box Drawing Characters
 export {
   CP437_BOX,
+  UNICODE_BOX,
   BOX_DRAWING_CODE_PAGES,
   ASCII_BORDER_CHARS,
   SINGLE_GRID,
