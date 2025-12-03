@@ -10,6 +10,7 @@
 import { CardDescription, CardFooter, CPI, LayoutEngine, Line, TYPEFACE } from '@escp/jsx';
 import { Layout, Stack, Text, Card, CardHeader, CardTitle, CardContent } from '@escp/jsx';
 import { renderPreview, DEFAULT_PAPER, printSection } from '../_helpers';
+import { UNICODE_BOX } from '@escp/core';
 
 async function main() {
   printSection('Card Border Alignment Test');
@@ -23,24 +24,29 @@ async function main() {
       <Stack style={{ gap: 20 }}>
         {/* Test 1: Simple card with minimal content */}
 
-        <Text
-          style={{
-            bold: true,
-            typeface: TYPEFACE.ROMAN,
-            cpi: CPI.PICA,
-            italic: true,
-            underline: true,
-          }}
-        >
-          Test 1: Simple Card
-        </Text>
-        <Card border="single">
-          <CardContent>
-            <Text>Simple content line 1</Text>
-            <Text>Simple content line 2</Text>
-          </CardContent>
-        </Card>
-
+        <Text style={{ bold: true, doubleWidth: true }}>Test 1: Simple Card</Text>
+        <Text style={{ underline: true }}>Test 1: Simple Card</Text>
+        <Stack direction="row">
+          <Card border="single" style={{ width: '35%' }}>
+            <CardHeader>
+              <CardTitle align="center">ALI ZAKHZAKH</CardTitle>
+            </CardHeader>
+            <CardContent style={{ padding: 40 }}>
+              <Text>Simple content line 1</Text>
+              <Text>Simple content line 2</Text>
+            </CardContent>
+          </Card>
+          <Card border="single" style={{ margin: 100, width: '60%' }}>
+            <CardHeader>
+              <CardTitle align="center">Yopu l3adim</CardTitle>
+            </CardHeader>
+            <Line direction="horizontal" char={UNICODE_BOX.SINGLE_HORIZONTAL}></Line>
+            <CardContent style={{ padding: 40 }}>
+              <Text>Simple content line 1</Text>
+              <Text>Simple content line 2</Text>
+            </CardContent>
+          </Card>
+        </Stack>
         {/* Test 2: Card with header */}
         <Text style={{ bold: true }}>Test 2: Card with Header</Text>
         <Card border="single">

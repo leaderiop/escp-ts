@@ -62,7 +62,9 @@ export function buildYogaTree(
     'doubleWidth' in node ||
     'doubleHeight' in node ||
     'condensed' in node ||
-    'cpi' in node;
+    'cpi' in node ||
+    'typeface' in node ||
+    'printQuality' in node;
   const nodeStyle = hasStyleProps ? node : {};
   const resolvedStyle = resolveStyle(nodeStyle, ctx.style);
 

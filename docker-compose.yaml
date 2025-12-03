@@ -1,0 +1,63 @@
+# ESC/P TypeScript Monorepo - Docker Compose
+#
+# Services:
+#   - converter: REST API for converting PRN files to PDF/PNG
+#   - escp2pdf:  CLI tool for batch PRN conversion (run with docker compose run)
+#
+# Usage:
+#   Start API:        docker compose up converter
+#   Convert file:     docker compose run --rm escp2pdf input.prn --page lq2090 --png
+#   Batch convert:    docker compose run --rm escp2pdf --batch ./output --page lq2090
+#   View API docs:    http://localhost:3000/docs
+#   Health check:     http://localhost:3000/api/v1/health
+
+services:
+  # =============================================================================
+  # ESC/P Converter API
+  # REST API for converting ESC/P2 PRN files to PDF/PNG
+  # =============================================================================
+  converter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: escp-converter
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    labels:
+      - "com.escp.service=converter"
+      - "com.escp.description=ESC/P2 PRN to PDF/PNG converter API"
+
+  # =============================================================================
+  # ESC/P2 to PDF CLI Tool
+  # Command-line utility for batch PRN conversion
+  # =============================================================================
+  escp2pdf:
+    build:
+      context: ./apps/examples
+      dockerfile: Dockerfile
+    container_name: escp2pdf
+    volumes:
+      - ./:/work
+    working_dir: /work
+    profiles:
+      - tools
+    labels:
+      - "com.escp.service=escp2pdf"
+      - "com.escp.description=CLI tool for PRN to PDF/PNG conversion"
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  default:
+    name: escp-network

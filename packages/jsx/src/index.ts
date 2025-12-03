@@ -234,6 +234,7 @@ export type {
   TextProps,
   SpacerProps,
   LineProps,
+  LineVariant,
   TemplateProps,
   IfProps,
   SwitchProps,

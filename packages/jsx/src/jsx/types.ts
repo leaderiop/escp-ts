@@ -147,13 +147,21 @@ export interface SpacerProps {
 }
 
 /**
+ * Line variant type for Unicode/ASCII line styles
+ */
+export type LineVariant = 'single' | 'double' | 'ascii';
+
+/**
  * Line component props
  * Horizontal or vertical separator line
  */
 export interface LineProps {
   style?: NodeStyle;
   direction?: 'horizontal' | 'vertical';
+  /** Custom character to use for the line */
   char?: string;
+  /** Line style variant - resolves to appropriate Unicode/ASCII character */
+  variant?: LineVariant;
   length?: number | 'fill';
 }
 
